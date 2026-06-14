@@ -324,6 +324,7 @@
       <button onclick="simFighterAttack('top')">⚔️ Ataca TOP 1<br><small>daña al de abajo</small></button>
       <button onclick="simFighterAttack('bot')">⚔️ Ataca TOP 2<br><small>daña al de arriba</small></button>
     </div>
+    <button class="alt" onclick="simMoneyGun()">💸 Pistola de dinero<br><small>500 puntos / primero en cola</small></button>
     <div class="row">
       <button class="alt" onclick="manualFaint('top')">☠️ Debilitar arriba</button>
       <button class="alt" onclick="manualFaint('bot')">☠️ Debilitar abajo</button>
@@ -338,6 +339,7 @@
 /* ============ Datos ============ */
 const SHOWDOWN = 'https://play.pokemonshowdown.com/sprites/';
 const ATTACKS = ['PLACAJE','ARAÑAZO','RAYO','LANZALLAMAS','HIDROBOMBA','PUÑO TRUENO','MEGAPATADA','GOLPE CUERPO'];
+const MONEY_GUN_COINS = 500;
 
 /* Los 151 Pokémon de la 1ª generación (los únicos permitidos) */
 const DEX_NAMES = [
@@ -548,18 +550,49 @@ function enterBattle(f){
   }
 }
 
-// Un regalo de un usuario solo cuenta si ese usuario es uno de los 2 luchadores.
-// Su regalo daña al rival. coins = daño.
-function onAttack(user, coins){
+// Un regalo de un usuario solo hace daño si ese usuario es uno de los 2 luchadores.
+// La pistola de dinero (500) permite a un espectador ponerse primero en cola.
+function onAttack(user, nick, img, coins){
   if(battleLocked || coins <= 0) return;
   let attacker = null;
   if(F.top.active && F.top.user === user) attacker = 'top';
   else if(F.bot.active && F.bot.user === user) attacker = 'bot';
-  if(!attacker) return;                         // espectador: su regalo no hace daño
+  if(!attacker){
+    if(coins === MONEY_GUN_COINS) moneyGunPriority(user, nick, img);
+    return;
+  }
   const target = attacker === 'top' ? 'bot' : 'top';
   if(!F[target].active || F[target].hp <= 0) return;
   registerActivity(attacker);
   doAttack(attacker, target, coins);
+}
+
+function moneyGunPriority(user, nick, img){
+  const r = registry[user] || {};
+  r.nick = r.nick || nick || user;
+  if(img) r.img = img;
+  if(!r.mon){
+    registry[user] = r;
+    setMessage('💸 ' + r.nick + ', escribe primero un Pokémon válido para ponerte en cola.');
+    return;
+  }
+  registry[user] = r;
+  const existing = queue.findIndex(c => c.user === user);
+  if(existing >= 0){
+    const f = queue.splice(existing, 1)[0];
+    queue.unshift(f);
+    renderQueue();
+    setMessage('💸 ¡' + f.nick + ' se pone primero en la cola!');
+    return;
+  }
+  const f = { user, nick: r.nick, mon: r.mon, img: r.img };
+  if(!F.top.active || !F.bot.active){
+    enterBattle(f);
+    return;
+  }
+  queue.unshift(f);
+  renderQueue();
+  setMessage('💸 ¡' + f.nick + ' se pone primero en la cola!');
 }
 
 function doAttack(attacker, target, dmg){
@@ -662,7 +695,7 @@ function handleEvent(d){
   switch(d.event){
     case 'comment': onComment(user, nick, img, d.comment || d.message || d.text || d.content || ''); break;
     case 'fight':   onFight(user, nick, img); break;
-    case 'attack':  onAttack(user, parseInt(d.coins || d.dmg || 0, 10)); break;
+    case 'attack':  onAttack(user, nick, img, parseInt(d.coins || d.dmg || 0, 10)); break;
     case 'reset':   resetGame(); break;
   }
 }
@@ -734,6 +767,7 @@ function simFighterAttack(side){
   if(!F[side].active){ setMessage('No hay luchador en ese hueco.'); return; }
   sim({ event:'attack', username: F[side].user, coins: parseInt(val('in-coins') || '20', 10) });
 }
+function simMoneyGun(){ sim(Object.assign(simUser(), { event:'attack', coins: MONEY_GUN_COINS })); }
 function simReset(){ sim({ event:'reset' }); }
 
 /* ============ Autocompletado (campo de comentario) ============ */

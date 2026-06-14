@@ -262,24 +262,35 @@
     position: absolute;
     left: 50%;
     top: calc(50% + 252px);
-    transform: translateX(-50%);
-    width: min(720px, calc(100vw - 32px));
+    transform: translateX(calc(-50% + 14px));
+    width: min(692px, calc(100vw - 60px));
     min-height: 38px;
+    max-height: 92px;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 10px;
     padding: 7px 10px;
     color: #dff;
     z-index: 10;
     pointer-events: none;
+    overflow: hidden;
   }
   .queue-title {
     flex: 0 0 auto;
     font-size: 10px;
+    line-height: 20px;
     color: #8fd;
     text-shadow: 1px 1px 0 #000;
   }
-  .qlist { display: flex; flex-wrap: wrap; gap: 4px; min-height: 16px; }
+  .qlist {
+    display: flex;
+    flex: 1;
+    flex-wrap: wrap;
+    gap: 4px;
+    min-height: 16px;
+    max-height: 76px;
+    overflow: hidden;
+  }
   .qchip {
     font-size: 10px; background: #1d2a44; color: #bdf;
     padding: 3px 7px; border-radius: 10px; border: 1px solid #2a3550;

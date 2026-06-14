@@ -1,0 +1,671 @@
+<!--
+  POKÉMON TIKTOK BATTLE — Overlay para OBS (estilo combate Pokémon Rojo/Azul)
+
+  Recibe eventos reales de TikFinity/Interactive a través del servidor (server.py)
+  por SSE. Flujo del juego:
+    - El usuario escribe un Pokémon en el chat  -> se recuerda su elección
+    - 🍩 Rosquilla  -> se le asigna ese Pokémon (aleatorio si no eligió) con su foto real
+    - 🦦 Capibara   -> entra a un hueco libre del combate, o a la cola si están llenos
+
+  El panel de la derecha es un SIMULADOR de TikFinity (postea a /webhook igual que
+  haría TikFinity) para poder probar sin estar en directo.
+
+  Atajo:  0  -> ocultar/mostrar el panel (para capturar limpio en OBS)
+-->
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pokémon TikTok Battle</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --ink: #2b2b2b;
+    --box-cream: #f8f8e8;
+    --box-shadow: #b0a878;
+    --hp-green: #58d058;
+    --hp-green-d: #38a038;
+    --hp-yellow: #f8d030;
+    --hp-red: #f04040;
+    --msg-blue: #2a6b86;
+    --msg-blue-d: #16455a;
+    --gold: #d8a838;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    background: #1b1b22;           /* fuera de captura; en OBS pon el navegador transparente */
+    font-family: 'Press Start 2P', monospace;
+    color: var(--ink);
+    overflow: hidden;
+  }
+
+  /* ===== Escena de combate (lienzo GBA escalado) ===== */
+  #stage {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .battle {
+    position: relative;
+    width: 720px;            /* 240 x3 */
+    height: 480px;           /* 160 x3 */
+    image-rendering: pixelated;
+    border: 6px solid #20303a;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 10px 40px rgba(0,0,0,.5);
+    background:
+      linear-gradient(#dff6e0 0%, #cfeccf 55%, #bfe6c0 100%);
+  }
+
+  .field-line {
+    position: absolute; left: 0; right: 0; height: 2px;
+    background: rgba(120,180,130,.35);
+  }
+
+  .platform {
+    position: absolute;
+    width: 270px; height: 70px;
+    border-radius: 50%;
+    background: radial-gradient(ellipse at 50% 40%, #aee4a0 0%, #88cf82 55%, #6fbf72 100%);
+    box-shadow: inset 0 -6px 0 rgba(80,150,90,.4);
+  }
+  .platform.top    { top: 130px; right: 18px; }
+  .platform.bottom { bottom: 96px; left: 8px; }
+
+  /* ===== Sprites ===== */
+  .mon {
+    position: absolute;
+    image-rendering: pixelated;
+    width: 168px; height: 168px;
+    object-fit: contain;
+    filter: drop-shadow(0 4px 2px rgba(0,0,0,.25));
+    transition: transform .08s linear, opacity .25s ease;
+    opacity: 0;
+  }
+  .mon.top    { top: 64px;  right: 70px; }
+  .mon.bottom { bottom: 96px; left: 40px; }
+
+  @keyframes shake {
+    0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)}
+    40%{transform:translateX(8px)} 60%{transform:translateX(-6px)} 80%{transform:translateX(6px)}
+  }
+  @keyframes lunge-top   { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-26px,18px)} }
+  @keyframes lunge-bot   { 0%,100%{transform:translate(0,0)} 50%{transform:translate(26px,-18px)} }
+  @keyframes blink       { 0%,100%{opacity:1} 50%{opacity:.15} }
+  @keyframes faint       { from{transform:translateY(0);opacity:1} to{transform:translateY(60px);opacity:0} }
+  .anim-shake { animation: shake .4s linear; }
+  .anim-blink { animation: blink .12s linear 4; }
+  .top.anim-lunge { animation: lunge-top .35s ease; }
+  .bottom.anim-lunge { animation: lunge-bot .35s ease; }
+  .anim-faint { animation: faint .7s ease forwards; }
+
+  /* ===== Cajas de info (nombre / nivel / HP) ===== */
+  .infobox {
+    position: absolute;
+    width: 300px;
+    background: var(--box-cream);
+    border: 4px solid #383838;
+    border-radius: 6px;
+    box-shadow: inset -3px -3px 0 var(--box-shadow), 0 3px 0 rgba(0,0,0,.25);
+    padding: 10px 12px;
+  }
+  .infobox.top    { top: 24px;  left: 22px; }
+  .infobox.bottom { bottom: 116px; right: 22px; }
+
+  .ib-row1 { display: flex; justify-content: space-between; align-items: baseline; }
+  .ib-name { font-size: 13px; letter-spacing: 1px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ib-lv   { font-size: 11px; }
+  .ib-row2 { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+  .hp-tag  {
+    font-size: 9px; color: #f8f8f8; background: #d89020;
+    padding: 2px 4px; border-radius: 3px; border: 1px solid #a06010;
+  }
+  .hp-track {
+    flex: 1; height: 9px; background: #303030;
+    border-radius: 5px; padding: 2px; border: 1px solid #585030;
+  }
+  .hp-fill {
+    height: 100%; width: 100%; border-radius: 4px;
+    background: linear-gradient(var(--hp-green), var(--hp-green-d));
+    transition: width .5s ease, background .3s ease;
+  }
+  .hp-num {
+    text-align: right; font-size: 10px; margin-top: 6px; letter-spacing: 1px;
+  }
+  .infobox.top .hp-num { display: none; }
+
+  /* ===== Avatares de TikTok (foto de perfil real) ===== */
+  .avatar {
+    position: absolute;
+    width: 64px; height: 64px;
+    border-radius: 50%;
+    border: 3px solid var(--gold);
+    background: #222 center/cover no-repeat;
+    box-shadow: 0 3px 8px rgba(0,0,0,.4);
+    z-index: 5;
+    display: none;
+  }
+  .avatar .rank {
+    position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%);
+    font-size: 8px; color:#fff; background: var(--gold);
+    padding: 2px 5px; border-radius: 8px; border: 2px solid #fff; white-space: nowrap;
+  }
+  .avatar.top    { top: 26px; right: 88px; }
+  .avatar.bottom { bottom: 248px; left: 66px; }
+
+  /* ===== Caja de mensajes ===== */
+  .msgbox {
+    position: absolute; left: 14px; right: 14px; bottom: 14px; height: 92px;
+    background: var(--msg-blue);
+    border: 4px solid #e8e8e8;
+    border-radius: 8px;
+    box-shadow: inset 0 0 0 3px var(--msg-blue-d);
+    padding: 16px 18px;
+    color: #fff; font-size: 14px; line-height: 1.7;
+    text-shadow: 1px 1px 0 rgba(0,0,0,.4);
+  }
+  .msgbox::after {
+    content: '▼'; position: absolute; right: 16px; bottom: 8px;
+    font-size: 12px; animation: bounce .6s infinite alternate;
+  }
+  @keyframes bounce { from{transform:translateY(0)} to{transform:translateY(4px)} }
+
+  .dmg-pop {
+    position: absolute; font-size: 16px; color: #ff5050;
+    text-shadow: 1px 1px 0 #fff, -1px -1px 0 #fff;
+    pointer-events: none; z-index: 6;
+    animation: floatUp 1s ease forwards;
+  }
+  @keyframes floatUp { from{transform:translateY(0);opacity:1} to{transform:translateY(-50px);opacity:0} }
+
+  /* indicador de conexión con el servidor */
+  #conn {
+    position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+    font-size: 9px; padding: 3px 8px; border-radius: 10px; z-index: 7;
+    background: #b04040; color: #fff;
+  }
+  #conn.ok { background: #3a9a4a; }
+
+  /* ===== Panel simulador (oculto en OBS con tecla 0) ===== */
+  #panel {
+    position: absolute; top: 12px; right: 12px; width: 300px;
+    background: #11151c; color: #cfe; border: 1px solid #2a3550;
+    border-radius: 10px; padding: 14px; font-family: system-ui, sans-serif;
+    font-size: 13px; z-index: 50; box-shadow: 0 8px 30px rgba(0,0,0,.5);
+    max-height: 96vh; overflow-y: auto;
+  }
+  #panel h3 { font-size: 13px; margin-bottom: 8px; color: #8fd; letter-spacing:.5px; }
+  #panel .grp { border-top: 1px solid #233; padding-top: 10px; margin-top: 10px; }
+  #panel label { display:block; font-size: 11px; color:#9ab; margin: 6px 0 3px; }
+  #panel input {
+    width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid #345;
+    background: #0a0d12; color: #dff; font-size: 13px;
+  }
+  #panel .row { display:flex; gap:6px; }
+  #panel button {
+    flex:1; margin-top: 8px; padding: 7px; border: 0; border-radius: 6px;
+    background: #2d6cf6; color:#fff; font-weight:600; cursor: pointer; font-size: 12px; line-height:1.3;
+  }
+  #panel button.alt { background:#444c5c; }
+  #panel button small { font-weight: 400; opacity: .8; font-size: 9px; }
+  #panel button:hover { filter: brightness(1.1); }
+  #panel .hint { font-size: 10px; color:#678; margin-top:8px; line-height:1.4; }
+
+  /* autocompletado de Pokémon */
+  .ac { position: relative; }
+  .ac-list {
+    position: absolute; left: 0; right: 0; top: 100%;
+    z-index: 60; background: #0a0d12;
+    border: 1px solid #345; border-top: 0; border-radius: 0 0 6px 6px;
+    max-height: 220px; overflow-y: auto; display: none;
+  }
+  .ac-list.open { display: block; }
+  .ac-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 5px 8px; cursor: pointer; font-size: 12px; color: #dff;
+  }
+  .ac-item:hover, .ac-item.active { background: #1d2a44; }
+  .ac-item .num { color: #678; font-size: 10px; width: 30px; }
+  .ac-item img { width: 30px; height: 30px; image-rendering: pixelated; }
+
+  /* cola de retadores */
+  .qlist { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; min-height: 16px; }
+  .qchip {
+    font-size: 10px; background: #1d2a44; color: #bdf;
+    padding: 3px 7px; border-radius: 10px; border: 1px solid #2a3550;
+  }
+  .qchip b { color: #8fd; }
+  .qempty { font-size: 10px; color: #567; font-style: italic; }
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <div class="battle" id="battle">
+    <div class="field-line" style="top:40%"></div>
+    <div class="field-line" style="top:60%"></div>
+
+    <div class="platform top"></div>
+    <div class="platform bottom"></div>
+
+    <div id="conn">○ sin servidor</div>
+
+    <!-- Rival (slot superior) -->
+    <img class="mon top" id="mon-top" alt="" />
+    <div class="avatar top" id="avatar-top"><span class="rank">🥇 TOP 1</span></div>
+    <div class="infobox top">
+      <div class="ib-row1">
+        <span class="ib-name" id="name-top">Esperando…</span>
+        <span class="ib-lv" id="lv-top">Nv5</span>
+      </div>
+      <div class="ib-row2">
+        <span class="hp-tag">HP</span>
+        <div class="hp-track"><div class="hp-fill" id="hp-top"></div></div>
+      </div>
+    </div>
+
+    <!-- Jugador (slot inferior) -->
+    <img class="mon bottom" id="mon-bot" alt="" />
+    <div class="avatar bottom" id="avatar-bot"><span class="rank">🥈 TOP 2</span></div>
+    <div class="infobox bottom">
+      <div class="ib-row1">
+        <span class="ib-name" id="name-bot">Esperando…</span>
+        <span class="ib-lv" id="lv-bot">Nv5</span>
+      </div>
+      <div class="ib-row2">
+        <span class="hp-tag">HP</span>
+        <div class="hp-track"><div class="hp-fill" id="hp-bot"></div></div>
+      </div>
+      <div class="hp-num" id="hpnum-bot"></div>
+    </div>
+
+    <div class="msgbox" id="msgbox">¡Esperando jugadores…!</div>
+  </div>
+</div>
+
+<!-- ====== Panel SIMULADOR de TikFinity (postea a /webhook) ====== -->
+<div id="panel">
+  <h3>🎮 Simulador TikFinity <span style="font-size:9px;color:#678">(tecla 0 oculta)</span></h3>
+
+  <div class="grp">
+    <label>Usuario (simula el @ de TikTok)</label>
+    <input id="sim-user" value="raul_tv" />
+  </div>
+
+  <div class="grp">
+    <label>💬 Comentario en el chat (elige Pokémon)</label>
+    <div class="ac">
+      <input id="sim-comment" autocomplete="off" placeholder="ej: Pikachu" value="Pikachu" />
+      <div class="ac-list" id="ac-comment"></div>
+    </div>
+    <button onclick="simComment()">Enviar comentario</button>
+  </div>
+
+  <div class="grp">
+    <label>🎁 Regalos</label>
+    <div class="row">
+      <button onclick="simGift('assign')">🍩 Rosquilla<br><small>asigna Pokémon</small></button>
+      <button class="alt" onclick="simGift('fight')">🦦 Capibara<br><small>a luchar / cola</small></button>
+    </div>
+  </div>
+
+  <div class="grp">
+    <label>⚔️ Ataque de prueba (daño)</label>
+    <input id="in-dmg" type="number" value="20" min="1" max="200" />
+    <div class="row">
+      <button onclick="simAttack('top')">Dañar TOP 1</button>
+      <button onclick="simAttack('bot')">Dañar TOP 2</button>
+    </div>
+    <div id="queue-list" class="qlist"></div>
+    <button class="alt" onclick="simReset()">🔄 Reiniciar partida</button>
+    <div class="hint">Estos botones POST-ean a /webhook igual que TikFinity. El daño según el regalo lo definimos más adelante.</div>
+  </div>
+</div>
+
+<script>
+/* ============ Datos ============ */
+const SHOWDOWN = 'https://play.pokemonshowdown.com/sprites/';
+const ATTACKS = ['PLACAJE','ARAÑAZO','RAYO','LANZALLAMAS','HIDROBOMBA','PUÑO TRUENO','MEGAPATADA','GOLPE CUERPO'];
+
+/* Los 151 Pokémon de la 1ª generación (los únicos permitidos) */
+const DEX_NAMES = [
+  'Bulbasaur','Ivysaur','Venusaur','Charmander','Charmeleon','Charizard','Squirtle','Wartortle','Blastoise','Caterpie',
+  'Metapod','Butterfree','Weedle','Kakuna','Beedrill','Pidgey','Pidgeotto','Pidgeot','Rattata','Raticate',
+  'Spearow','Fearow','Ekans','Arbok','Pikachu','Raichu','Sandshrew','Sandslash','Nidoran♀','Nidorina',
+  'Nidoqueen','Nidoran♂','Nidorino','Nidoking','Clefairy','Clefable','Vulpix','Ninetales','Jigglypuff','Wigglytuff',
+  'Zubat','Golbat','Oddish','Gloom','Vileplume','Paras','Parasect','Venonat','Venomoth','Diglett',
+  'Dugtrio','Meowth','Persian','Psyduck','Golduck','Mankey','Primeape','Growlithe','Arcanine','Poliwag',
+  'Poliwhirl','Poliwrath','Abra','Kadabra','Alakazam','Machop','Machoke','Machamp','Bellsprout','Weepinbell',
+  'Victreebel','Tentacool','Tentacruel','Geodude','Graveler','Golem','Ponyta','Rapidash','Slowpoke','Slowbro',
+  'Magnemite','Magneton',"Farfetch'd",'Doduo','Dodrio','Seel','Dewgong','Grimer','Muk','Shellder',
+  'Cloyster','Gastly','Haunter','Gengar','Onix','Drowzee','Hypno','Krabby','Kingler','Voltorb',
+  'Electrode','Exeggcute','Exeggutor','Cubone','Marowak','Hitmonlee','Hitmonchan','Lickitung','Koffing','Weezing',
+  'Rhyhorn','Rhydon','Chansey','Tangela','Kangaskhan','Horsea','Seadra','Goldeen','Seaking','Staryu',
+  'Starmie','Mr. Mime','Scyther','Jynx','Electabuzz','Magmar','Pinsir','Tauros','Magikarp','Gyarados',
+  'Lapras','Ditto','Eevee','Vaporeon','Jolteon','Flareon','Porygon','Omanyte','Omastar','Kabuto',
+  'Kabutops','Aerodactyl','Snorlax','Articuno','Zapdos','Moltres','Dratini','Dragonair','Dragonite','Mewtwo','Mew'
+];
+
+function slug(n){
+  return (n || '').toLowerCase().trim()
+    .replace(/♀/g,'f').replace(/♂/g,'m')
+    .replace(/[.'’\-\s]/g,'');
+}
+const DEX = DEX_NAMES.map((name, i) => ({ num: i + 1, name, slug: slug(name) }));
+function findMon(name){
+  const s = slug(name);
+  if(!s) return null;
+  return DEX.find(d => d.slug === s) || null;
+}
+function randomMon(){ return DEX[Math.floor(Math.random() * DEX.length)]; }
+
+function spriteCandidates(name, side){
+  // Solo Gen 1 (Rojo/Azul). 'top' = sprite frontal ; 'bot' = de espaldas.
+  const s = slug(name);
+  const dir = side === 'bot' ? 'gen1-back/' : 'gen1/';
+  return [SHOWDOWN + dir + s + '.png'];
+}
+
+/* ============ Estado del juego ============ */
+// Dos slots activos del combate
+function emptyFighter(){ return { user:'', nick:'', mon:'', img:'', hp:0, max:100, lv:5, active:false }; }
+const F = { top: emptyFighter(), bot: emptyFighter() };
+// Cola de retadores y registro de elecciones por usuario
+let queue = [];
+let registry = {};   // username -> { nick, mon, img }
+
+/* ============ Pintar combatientes ============ */
+function setFighter(side, f){
+  F[side] = { user:f.user, nick:f.nick, mon:f.mon, img:f.img, hp:100, max:100, lv:5, active:true };
+  const img = document.getElementById('mon-' + side);
+  img.classList.remove('anim-faint','anim-shake','anim-blink','anim-lunge');
+  const cands = spriteCandidates(f.mon, side);
+  let ci = 0;
+  img.onload  = () => { img.style.opacity = 1; };
+  img.onerror = () => { ci++; if(ci < cands.length) img.src = cands[ci]; else img.style.opacity = .15; };
+  img.style.opacity = 1;
+  img.src = cands[0];
+
+  const av = document.getElementById('avatar-' + side);
+  av.style.backgroundImage = f.img ? "url('" + f.img + "')" : '';
+  av.style.display = 'block';
+  render();
+}
+
+function clearFighter(side){
+  F[side] = emptyFighter();
+  const img = document.getElementById('mon-' + side);
+  img.classList.remove('anim-faint','anim-shake','anim-blink','anim-lunge');
+  img.style.opacity = 0;
+  img.removeAttribute('src');
+  document.getElementById('avatar-' + side).style.display = 'none';
+  render();
+}
+
+function render(){
+  for(const side of ['top','bot']){
+    const f = F[side];
+    const pct = f.active ? Math.max(0, (f.hp / f.max) * 100) : 0;
+    const fill = document.getElementById('hp-' + side);
+    fill.style.width = pct + '%';
+    fill.style.background = pct > 50
+      ? 'linear-gradient(var(--hp-green),var(--hp-green-d))'
+      : pct > 20 ? 'var(--hp-yellow)' : 'var(--hp-red)';
+    document.getElementById('name-' + side).textContent = f.active ? f.nick : 'Esperando…';
+    document.getElementById('lv-' + side).textContent = 'Nv' + f.lv;
+  }
+  document.getElementById('hpnum-bot').textContent = F.bot.active ? (F.bot.hp + '/' + F.bot.max) : '';
+}
+
+/* ============ Lógica del juego (reacciona a eventos) ============ */
+function onComment(user, nick, img, comment){
+  const r = registry[user] || {};
+  r.nick = nick; if(img) r.img = img;
+  const entry = findMon(comment);
+  if(entry){
+    r.mon = entry.name;
+    setMessage('📝 ' + nick + ' eligió ' + entry.name + '. ¡Manda 🍩 para jugar!');
+  }
+  registry[user] = r;
+}
+
+function onAssign(user, nick, img){      // 🍩 rosquilla
+  const r = registry[user] || {};
+  r.nick = nick; if(img) r.img = img;
+  if(!r.mon) r.mon = randomMon().name;   // sin elección -> aleatorio
+  registry[user] = r;
+  setMessage('🍩 ¡' + nick + ' tiene a ' + r.mon + '! Manda 🦦 capibara para luchar.');
+}
+
+function onFight(user, nick, img){        // 🦦 capibara
+  const r = registry[user] || {};
+  r.nick = nick; if(img) r.img = img;
+  if(!r.mon) r.mon = randomMon().name;
+  registry[user] = r;
+  enterBattle({ user, nick: r.nick, mon: r.mon, img: r.img });
+}
+
+function enterBattle(f){
+  if(!F.top.active){
+    setFighter('top', f);
+    setMessage('⚔️ ¡' + f.nick + ' entra al combate con ' + f.mon + '!');
+  } else if(!F.bot.active){
+    setFighter('bot', f);
+    setMessage('⚔️ ¡' + f.nick + ' reta con ' + f.mon + '!');
+  } else {
+    queue.push(f);
+    renderQueue();
+    setMessage('🧍 ' + f.nick + ' espera en la cola (' + queue.length + ').');
+  }
+}
+
+function onAttack(target, dmg){
+  if(!F[target] || !F[target].active || F[target].hp <= 0) return;
+  const attacker = target === 'top' ? 'bot' : 'top';
+  doAttack(attacker, target, dmg);
+}
+
+function doAttack(attacker, target, dmg){
+  const move = ATTACKS[Math.floor(Math.random() * ATTACKS.length)];
+  if(F[attacker] && F[attacker].active){
+    const aImg = document.getElementById('mon-' + attacker);
+    aImg.classList.remove('anim-lunge'); void aImg.offsetWidth; aImg.classList.add('anim-lunge');
+    setMessage('¡' + F[attacker].nick + ' usó ' + move + '!');
+  } else {
+    setMessage('¡' + move + '!');
+  }
+
+  setTimeout(() => {
+    const tImg = document.getElementById('mon-' + target);
+    tImg.classList.remove('anim-shake','anim-blink'); void tImg.offsetWidth;
+    tImg.classList.add('anim-shake','anim-blink');
+    popDamage(target, dmg);
+
+    F[target].hp = Math.max(0, F[target].hp - dmg);
+    render();
+
+    if(F[target].hp <= 0){
+      const loserNick = F[target].nick;
+      const winnerNick = (F[attacker] && F[attacker].active) ? F[attacker].nick : 'el rival';
+      setTimeout(() => {
+        tImg.classList.add('anim-faint');
+        setMessage('¡' + loserNick + ' se debilitó! 🏆 Gana ' + winnerNick);
+        setTimeout(() => advanceQueue(target, attacker), 1700);
+      }, 450);
+    }
+  }, 320);
+}
+
+// El perdedor deja su hueco; entra el siguiente de la cola (a vida completa).
+function advanceQueue(loserSide, winnerSide){
+  if(queue.length){
+    const next = queue.shift();
+    setFighter(loserSide, next);
+    renderQueue();
+    const champ = (F[winnerSide] && F[winnerSide].active) ? F[winnerSide].nick : 'el campeón';
+    setMessage('¡' + next.nick + ' reta a ' + champ + '! ⚔️');
+  } else {
+    clearFighter(loserSide);
+    const champ = (F[winnerSide] && F[winnerSide].active) ? F[winnerSide].nick : '';
+    setMessage('🏆 ' + champ + ' sigue invicto. ¡Envía 🦦 para retarle!');
+  }
+}
+
+function renderQueue(){
+  const el = document.getElementById('queue-list');
+  if(!queue.length){ el.innerHTML = '<span class="qempty">Cola vacía</span>'; return; }
+  el.innerHTML = queue.map((c, i) => '<span class="qchip"><b>' + (i+1) + '.</b> ' + c.nick + '</span>').join('');
+}
+
+function resetGame(){
+  queue = []; registry = {};
+  clearFighter('top'); clearFighter('bot');
+  renderQueue();
+  setMessage('¡Listo! Escribe un Pokémon y manda 🍩, luego 🦦 para luchar.');
+}
+
+/* ============ Despachador de eventos (vienen del servidor por SSE) ============ */
+function handleEvent(d){
+  if(!d || !d.event) return;
+  const user = d.username || d.user || 'anon';
+  const nick = d.nickname || d.nick || user;
+  const img  = d.imgprofile || d.img || '';
+  switch(d.event){
+    case 'comment': onComment(user, nick, img, d.comment || ''); break;
+    case 'assign':  onAssign(user, nick, img); break;
+    case 'fight':   onFight(user, nick, img); break;
+    case 'attack':  onAttack(d.target || 'top', parseInt(d.dmg || 20, 10)); break;
+    case 'reset':   resetGame(); break;
+  }
+}
+
+/* ============ Conexión con el servidor (SSE) ============ */
+function connectSSE(){
+  let es;
+  try { es = new EventSource('/events'); }
+  catch(_) { return; }
+  es.onopen = () => setConn(true);
+  es.onmessage = (e) => { try { handleEvent(JSON.parse(e.data)); } catch(_){} };
+  es.onerror = () => setConn(false);   // EventSource reintenta solo
+}
+function setConn(ok){
+  const c = document.getElementById('conn');
+  c.classList.toggle('ok', ok);
+  c.textContent = ok ? '● conectado' : '○ sin servidor';
+  // en modo overlay limpio, oculta el indicador cuando todo va bien
+  c.style.display = (OBS_MODE && ok) ? 'none' : 'block';
+}
+
+/* ?obs=1 (o ?panel=0) en la URL = overlay limpio para OBS/TikTok Studio */
+const OBS_MODE = (() => {
+  const p = new URLSearchParams(location.search);
+  return p.has('obs') || p.get('panel') === '0';
+})();
+if(OBS_MODE){ document.getElementById('panel').style.display = 'none'; }
+
+/* ============ Efecto máquina de escribir ============ */
+let typer;
+function setMessage(text){
+  clearInterval(typer);
+  const box = document.getElementById('msgbox');
+  box.textContent = '';
+  let i = 0;
+  typer = setInterval(() => {
+    box.textContent = text.slice(0, ++i);
+    if(i >= text.length) clearInterval(typer);
+  }, 24);
+}
+
+function popDamage(side, dmg){
+  const ref = document.getElementById('mon-' + side);
+  const b = document.getElementById('battle').getBoundingClientRect();
+  const r = ref.getBoundingClientRect();
+  const pop = document.createElement('div');
+  pop.className = 'dmg-pop';
+  pop.textContent = '-' + dmg;
+  pop.style.left = (r.left - b.left + 60) + 'px';
+  pop.style.top  = (r.top  - b.top  + 40) + 'px';
+  document.getElementById('battle').appendChild(pop);
+  setTimeout(() => pop.remove(), 1000);
+}
+
+/* ============ Panel simulador: postea a /webhook como TikFinity ============ */
+function val(id){ return (document.getElementById(id).value || '').trim(); }
+function fakePic(user){ return 'https://api.dicebear.com/9.x/bottts/svg?seed=' + encodeURIComponent(user); }
+
+function sim(evt){
+  // postea al servidor igual que TikFinity; si no hay servidor, ejecuta en local
+  fetch('/webhook', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(evt) })
+    .then(r => { if(!r.ok) throw 0; })
+    .catch(() => handleEvent(evt));
+}
+function simUser(){ const u = val('sim-user') || 'anon'; return { username:u, nickname:u, imgprofile:fakePic(u) }; }
+function simComment(){ sim(Object.assign(simUser(), { event:'comment', comment: val('sim-comment') })); }
+function simGift(kind){ sim(Object.assign(simUser(), { event: kind })); }
+function simAttack(side){ sim({ event:'attack', target: side, dmg: parseInt(val('in-dmg') || '20', 10) }); }
+function simReset(){ sim({ event:'reset' }); }
+
+/* ============ Autocompletado (campo de comentario) ============ */
+function renderAC(side, onPick){
+  const input = document.getElementById(side === 'comment' ? 'sim-comment' : 'in-' + side);
+  const list  = document.getElementById('ac-' + side);
+  const q = slug(input.value);
+  list.innerHTML = '';
+  if(!input.value.trim()){ list.classList.remove('open'); return; }
+  const matches = DEX
+    .filter(d => d.slug.includes(q))
+    .sort((a, b) => (b.slug.startsWith(q) ? 1 : 0) - (a.slug.startsWith(q) ? 1 : 0))
+    .slice(0, 8);
+  if(!matches.length){ list.classList.remove('open'); return; }
+  for(const d of matches){
+    const item = document.createElement('div');
+    item.className = 'ac-item';
+    item.innerHTML =
+      '<span class="num">#' + String(d.num).padStart(3, '0') + '</span>' +
+      '<img src="' + SHOWDOWN + 'gen1/' + d.slug + '.png" alt="">' +
+      '<span>' + d.name + '</span>';
+    item.addEventListener('mousedown', e => {
+      e.preventDefault();
+      input.value = d.name;
+      list.classList.remove('open');
+      onPick();
+    });
+    list.appendChild(item);
+  }
+  list.classList.add('open');
+}
+function setupAC(side, onPick){
+  const input = document.getElementById(side === 'comment' ? 'sim-comment' : 'in-' + side);
+  const list  = document.getElementById('ac-' + side);
+  input.addEventListener('input', () => renderAC(side, onPick));
+  input.addEventListener('focus', () => renderAC(side, onPick));
+  input.addEventListener('blur',  () => setTimeout(() => list.classList.remove('open'), 120));
+  input.addEventListener('keydown', e => { if(e.key === 'Enter'){ list.classList.remove('open'); onPick(); } });
+}
+setupAC('comment', () => simComment());
+
+/* atajo: ocultar panel para capturar en OBS (tecla 0, no interfiere al escribir) */
+document.addEventListener('keydown', e => {
+  if(e.target && e.target.tagName === 'INPUT') return;
+  if(e.key === '0'){
+    const p = document.getElementById('panel');
+    p.style.display = p.style.display === 'none' ? 'block' : 'none';
+  }
+});
+
+/* ============ Arranque ============ */
+render();
+renderQueue();
+connectSSE();
+setMessage('¡Listo! Escribe un Pokémon y manda 🍩, luego 🦦 para luchar.');
+</script>
+</body>
+</html>

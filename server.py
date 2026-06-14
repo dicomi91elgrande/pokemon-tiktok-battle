@@ -132,7 +132,7 @@ class Handler(BaseHTTPRequestHandler):
         except Exception:
             obj = {'event': 'raw', 'raw': raw.decode('utf-8', 'replace')}
         broadcast(obj)
-        print('webhook:', obj)
+        print('webhook:', obj, flush=True)
         self.send_response(200)
         self._cors()
         self.send_header('Content-Type', 'application/json')

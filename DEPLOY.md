@@ -66,11 +66,15 @@ POST Body de cada una:
 | Regalo 🦦 Capibara (entrar)     | `{"event":"fight","username":"{username}","nickname":"{nickname}","imgprofile":"{imgprofile}"}` |
 | Cualquier OTRO regalo (ataque) | `{"event":"attack","username":"{username}","nickname":"{nickname}","imgprofile":"{imgprofile}","coins":{coins}}` |
 | Regalo pistola de dinero | `{"event":"money_gun","username":"{username}","nickname":"{nickname}","imgprofile":"{imgprofile}"}` |
+| Regalo gafas de sol (poción) | `{"event":"potion","username":"{username}","nickname":"{nickname}","imgprofile":"{imgprofile}"}` |
+| Regalo galaxia (CARAMELORARO) | `{"event":"rare_candy","username":"{username}","nickname":"{nickname}","imgprofile":"{imgprofile}"}` |
 
 **Cómo funciona el combate:**
 - El comentario asigna el Pokémon. La capibara mete al usuario a luchar o a la cola si antes escribió un Pokémon válido. Si ese usuario ya está luchando, la capibara hace 30 de daño al rival.
 - Un regalo = ataque, y el daño = sus monedas (`{coins}`). **Solo cuentan los regalos de los 2 que están luchando** (el de arriba daña al de abajo y viceversa); los espectadores no hacen daño.
 - La pistola de dinero tiene su propio disparador/webhook (`event:"money_gun"`). Pone al usuario primero en la cola si no está luchando. Si ese usuario ya está luchando, hace `500` de daño al rival.
+- Las gafas de sol tienen su propio disparador/webhook (`event:"potion"`). Solo funcionan si el usuario está luchando y curan el 50% de la vida máxima de su Pokémon; no hacen daño al rival.
+- La galaxia tiene su propio disparador/webhook (`event:"rare_candy"`). Al empezar cada combate aparece un contador de 10 segundos para usar CARAMELORARO; si el luchador lo usa en ese tiempo, sube 10 niveles y gana la vida máxima correspondiente. Fuera de ese contador no tiene efecto.
 - Cada personaje empieza en **Nv1 con 100 HP**. Al ganar sube de nivel y gana **+50 HP** máx.
 - Los luchadores ya no pierden vida por inactividad. Puedes debilitar manualmente al luchador de arriba o abajo desde el panel de control del overlay.
 - Si durante 60 segundos solo hay un luchador humano y nadie entra a retarle, aparece **TEAM ROCKET** en el hueco libre con el mismo nivel. Ataca a los 15s, 30s y 60s quitando el 10%, 50% y 100% de la vida máxima del rival.

@@ -180,12 +180,31 @@
   }
   @keyframes bounce { from{transform:translateY(0)} to{transform:translateY(4px)} }
 
+  .prep-banner {
+    position: absolute; left: 32px; right: 32px; bottom: 116px;
+    min-height: 58px; z-index: 8; display: none;
+    align-items: center; gap: 12px; padding: 8px 14px;
+    background: rgba(20, 26, 38, .92); color: #fff;
+    border: 3px solid #f8f8e8; border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,.35), inset 0 0 0 2px #42506a;
+    font-size: 10px; line-height: 1.45; text-shadow: 1px 1px 0 rgba(0,0,0,.5);
+  }
+  .prep-banner.show { display: flex; }
+  .prep-banner img {
+    width: 42px; height: 42px; object-fit: contain; image-rendering: pixelated;
+  }
+  .prep-banner b {
+    margin-left: auto; min-width: 34px; text-align: center;
+    font-size: 18px; color: #ffe070;
+  }
+
   .dmg-pop {
     position: absolute; font-size: 16px; color: #ff5050;
     text-shadow: 1px 1px 0 #fff, -1px -1px 0 #fff;
     pointer-events: none; z-index: 6;
     animation: floatUp 1s ease forwards;
   }
+  .dmg-pop.heal { color: #45e070; }
   @keyframes floatUp { from{transform:translateY(0);opacity:1} to{transform:translateY(-50px);opacity:0} }
 
   /* indicador de conexión con el servidor */
@@ -291,6 +310,11 @@
     </div>
 
     <div class="msgbox" id="msgbox">¡Esperando jugadores…!</div>
+    <div class="prep-banner" id="prep-banner">
+      <img src="assets/galaxy.png" alt="" />
+      <span>Tiempo para usar CARAMELORARO y subir 10 niveles.</span>
+      <b id="prep-count">10</b>
+    </div>
   </div>
 </div>
 
@@ -326,6 +350,10 @@
     </div>
     <button class="alt" onclick="simMoneyGun()">💸 Pistola de dinero<br><small>500 puntos / primero en cola</small></button>
     <div class="row">
+      <button class="alt" onclick="simPotion()">🕶️ Poción<br><small>cura 50%</small></button>
+      <button class="alt" onclick="simRareCandy()">🌌 CARAMELORARO<br><small>+10 Nv</small></button>
+    </div>
+    <div class="row">
       <button class="alt" onclick="manualFaint('top')">☠️ Debilitar arriba</button>
       <button class="alt" onclick="manualFaint('bot')">☠️ Debilitar abajo</button>
     </div>
@@ -340,6 +368,9 @@
 const SHOWDOWN = 'https://play.pokemonshowdown.com/sprites/';
 const ATTACKS = ['PLACAJE','ARAÑAZO','RAYO','LANZALLAMAS','HIDROBOMBA','PUÑO TRUENO','MEGAPATADA','GOLPE CUERPO'];
 const MONEY_GUN_COINS = 500;
+const PREP_SECONDS = 10;
+const RARE_CANDY_LEVELS = 10;
+const HP_PER_LEVEL = 50;
 const TEAM_ROCKET_USER = '__team_rocket__';
 const TEAM_ROCKET_SPRITES = { top: 'assets/team-rocket-front.png', bot: 'assets/team-rocket-back.png' };
 const TEAM_ROCKET_WAIT_MS = 60000;
@@ -437,6 +468,10 @@ let registry = {};        // username -> { nick, mon, img }
 let battleLocked = false;  // true mientras se resuelve un KO (evita dobles)
 let rocketSpawnTimer = null;
 let rocketAttackTimers = [];
+let battlePrepActive = false;
+let battlePrepTimer = null;
+let battlePrepInterval = null;
+let battlePrepCandyUsed = {};
 
 /* ============ Pintar combatientes ============ */
 function setFighter(side, f){
@@ -544,7 +579,7 @@ function isInQueue(user){
 }
 
 function giftAttack(attacker, dmg){
-  if(battleLocked) return;
+  if(battleLocked || battlePrepActive) return;
   const target = attacker === 'top' ? 'bot' : 'top';
   if(!F[target].active || F[target].hp <= 0) return;
   registerActivity(attacker);
@@ -552,23 +587,79 @@ function giftAttack(attacker, dmg){
 }
 
 function enterBattle(f){
+  let entered = false;
   if(!F.top.active){
     setFighter('top', f);
     setMessage('⚔️ ¡' + f.nick + ' entra al combate con ' + f.mon + '!');
+    entered = true;
   } else if(!F.bot.active){
     setFighter('bot', f);
     setMessage('⚔️ ¡' + f.nick + ' reta con ' + f.mon + '!');
+    entered = true;
   } else {
     queue.push(f);
     renderQueue();
     setMessage('🧍 ' + f.nick + ' espera en la cola (' + queue.length + ').');
   }
+  if(entered) maybeStartBattlePrep();
+}
+
+function activeBattleReady(){
+  return F.top.active && F.bot.active && !battleLocked;
+}
+
+function maybeStartBattlePrep(){
+  if(!activeBattleReady() || battlePrepActive) return;
+  startBattlePrep();
+}
+
+function startBattlePrep(){
+  clearBattlePrep();
+  battlePrepActive = true;
+  battlePrepCandyUsed = {};
+  let remaining = PREP_SECONDS;
+  showPrepBanner(remaining);
+  setMessage('¡Preparando combate! Tiempo para usar CARAMELORARO.');
+  battlePrepInterval = setInterval(() => {
+    remaining -= 1;
+    showPrepBanner(remaining);
+    if(remaining <= 0) finishBattlePrep();
+  }, 1000);
+  battlePrepTimer = setTimeout(finishBattlePrep, PREP_SECONDS * 1000 + 150);
+}
+
+function finishBattlePrep(){
+  if(!battlePrepActive) return;
+  clearBattlePrep();
+  if(activeBattleReady()){
+    setMessage('¡Comienza el combate!');
+    const rocketSide = F.top.isNpc ? 'top' : F.bot.isNpc ? 'bot' : null;
+    if(rocketSide) scheduleTeamRocketAttacks(rocketSide, rocketSide === 'top' ? 'bot' : 'top');
+  }
+}
+
+function clearBattlePrep(){
+  if(battlePrepTimer) clearTimeout(battlePrepTimer);
+  if(battlePrepInterval) clearInterval(battlePrepInterval);
+  battlePrepTimer = null;
+  battlePrepInterval = null;
+  battlePrepActive = false;
+  const banner = document.getElementById('prep-banner');
+  if(banner) banner.classList.remove('show');
+}
+
+function showPrepBanner(seconds){
+  const banner = document.getElementById('prep-banner');
+  const count = document.getElementById('prep-count');
+  if(!banner || !count) return;
+  count.textContent = Math.max(0, seconds);
+  banner.classList.add('show');
 }
 
 // Un regalo de un usuario solo cuenta si ese usuario es uno de los 2 luchadores.
 // Su regalo daña al rival. coins = daño.
 function onAttack(user, nick, img, coins){
-  if(battleLocked || coins <= 0) return;
+  if(battleLocked || battlePrepActive || coins <= 0) return;
   let attacker = null;
   if(F.top.active && F.top.user === user) attacker = 'top';
   else if(F.bot.active && F.bot.user === user) attacker = 'bot';
@@ -579,10 +670,53 @@ function onAttack(user, nick, img, coins){
   doAttack(attacker, target, coins);
 }
 
+function onPotion(user){
+  if(battleLocked) return;
+  const side = getFightingSide(user);
+  if(!side || !F[side].active || F[side].hp <= 0) return;
+  const heal = Math.ceil(F[side].max * 0.5);
+  const before = F[side].hp;
+  F[side].hp = Math.min(F[side].max, F[side].hp + heal);
+  render();
+  const healed = F[side].hp - before;
+  if(healed <= 0){
+    setMessage('🕶️ ' + F[side].nick + ' ya tiene toda la vida.');
+    return;
+  }
+  popHeal(side, healed);
+  setMessage('🕶️ ¡' + F[side].nick + ' usó POCIÓN! (+' + healed + ' HP)');
+}
+
+function onRareCandy(user){
+  if(!battlePrepActive){
+    setMessage('🌌 CARAMELORARO solo se puede usar antes de empezar el combate.');
+    return;
+  }
+  const side = getFightingSide(user);
+  if(!side || !F[side].active || F[side].isNpc) return;
+  if(battlePrepCandyUsed[user]){
+    setMessage('🌌 ' + F[side].nick + ' ya usó CARAMELORARO en este combate.');
+    return;
+  }
+  battlePrepCandyUsed[user] = true;
+  boostLevels(side, RARE_CANDY_LEVELS);
+  setMessage('🌌 ¡' + F[side].nick + ' usó CARAMELORARO! +' + RARE_CANDY_LEVELS + ' niveles.');
+}
+
+function boostLevels(side, levels){
+  if(!F[side].active) return;
+  const hpGain = levels * HP_PER_LEVEL;
+  F[side].lv += levels;
+  F[side].max += hpGain;
+  F[side].hp += hpGain;
+  render();
+}
+
 function moneyGunPriority(user, nick, img){
   if(battleLocked) return;
   const fightingSide = getFightingSide(user);
   if(fightingSide){
+    if(battlePrepActive) return;
     giftAttack(fightingSide, MONEY_GUN_COINS);
     return;
   }
@@ -650,7 +784,7 @@ function spawnTeamRocket(){
     isNpc: true
   });
   setMessage('¡TEAM ROCKET aparece para retar a ' + target.nick + '!');
-  scheduleTeamRocketAttacks(rocketSide, targetSide);
+  maybeStartBattlePrep();
 }
 
 function clearRocketAttacks(){
@@ -668,7 +802,7 @@ function scheduleTeamRocketAttacks(rocketSide, targetSide){
 }
 
 function teamRocketAttack(rocketSide, targetSide, frac){
-  if(battleLocked) return;
+  if(battleLocked || battlePrepActive) return;
   const rocket = F[rocketSide];
   const target = F[targetSide];
   if(!rocket.active || !rocket.isNpc || !target.active || target.hp <= 0) return;
@@ -711,6 +845,7 @@ function levelUp(side){
 
 function faintFighter(loser, winner){
   if(battleLocked) return;
+  clearBattlePrep();
   clearRocketAttacks();
   battleLocked = true;
   F[loser].hp = 0; render();
@@ -753,6 +888,7 @@ function advanceQueue(loserSide, winnerSide){
   }
   if(F[winnerSide] && F[winnerSide].active) registerActivity(winnerSide);  // respiro tras el KO
   battleLocked = false;
+  maybeStartBattlePrep();
   syncRocketTimer();
 }
 
@@ -772,6 +908,7 @@ function resetGame(){
     clearTimeout(rocketSpawnTimer);
     rocketSpawnTimer = null;
   }
+  clearBattlePrep();
   clearRocketAttacks();
   queue = []; registry = {}; battleLocked = false;
   clearFighter('top'); clearFighter('bot');
@@ -790,6 +927,8 @@ function handleEvent(d){
     case 'fight':   onFight(user, nick, img); break;
     case 'attack':  onAttack(user, nick, img, parseInt(d.coins || d.dmg || 0, 10)); break;
     case 'money_gun': moneyGunPriority(user, nick, img); break;
+    case 'potion':  onPotion(user); break;
+    case 'rare_candy': onRareCandy(user); break;
     case 'reset':   resetGame(); break;
   }
 }
@@ -844,6 +983,20 @@ function popDamage(side, dmg){
   setTimeout(() => pop.remove(), 1000);
 }
 
+function popHeal(side, hp){
+  if(hp <= 0) return;
+  const ref = document.getElementById('mon-' + side);
+  const b = document.getElementById('battle').getBoundingClientRect();
+  const r = ref.getBoundingClientRect();
+  const pop = document.createElement('div');
+  pop.className = 'dmg-pop heal';
+  pop.textContent = '+' + hp;
+  pop.style.left = (r.left - b.left + 60) + 'px';
+  pop.style.top  = (r.top  - b.top  + 40) + 'px';
+  document.getElementById('battle').appendChild(pop);
+  setTimeout(() => pop.remove(), 1000);
+}
+
 /* ============ Panel simulador: postea a /webhook como TikFinity ============ */
 function val(id){ return (document.getElementById(id).value || '').trim(); }
 function fakePic(user){ return 'https://api.dicebear.com/9.x/bottts/svg?seed=' + encodeURIComponent(user); }
@@ -862,6 +1015,8 @@ function simFighterAttack(side){
   sim({ event:'attack', username: F[side].user, coins: parseInt(val('in-coins') || '20', 10) });
 }
 function simMoneyGun(){ sim(Object.assign(simUser(), { event:'money_gun' })); }
+function simPotion(){ sim(Object.assign(simUser(), { event:'potion' })); }
+function simRareCandy(){ sim(Object.assign(simUser(), { event:'rare_candy' })); }
 function simReset(){ sim({ event:'reset' }); }
 
 /* ============ Autocompletado (campo de comentario) ============ */

@@ -6,7 +6,7 @@
     - El usuario escribe un Pokémon en el chat  -> se le asigna ese Pokémon (con su foto real)
     - 🦦 Capibara   -> entra a un hueco libre del combate, o a la cola si están llenos.
       Si ya está luchando, la capibara ataca con 30 de daño.
-    - 🎁 Otros regalos de los 2 luchadores -> ataque (monedas = daño). Ganar sube de nivel (+50 HP).
+    - 🎁 Otros regalos de los 2 luchadores -> ataque (monedas = daño). Ganar sube de nivel (+50 HP) y cura al 100%.
     - El control manual permite debilitar a cualquiera de los dos luchadores.
 
   El panel de la derecha es un SIMULADOR de TikFinity (postea a /webhook igual que
@@ -848,7 +848,7 @@ function faintFighter(loser, winner){
   setTimeout(() => {
     if(F[winner] && F[winner].active){
       levelUp(winner);
-      setMessage('¡' + loserNick + ' se debilitó! 🏆 ' + F[winner].nick + ' sube a Nv' + F[winner].lv + ' (+50 HP)');
+      setMessage('¡' + loserNick + ' se debilitó! 🏆 ' + F[winner].nick + ' sube a Nv' + F[winner].lv + ', gana +50 HP y se cura al 100%');
     } else {
       setMessage('¡' + loserNick + ' se debilitó!');
     }

@@ -471,7 +471,6 @@ let rocketAttackTimers = [];
 let battlePrepActive = false;
 let battlePrepTimer = null;
 let battlePrepInterval = null;
-let battlePrepCandyUsed = {};
 
 /* ============ Pintar combatientes ============ */
 function setFighter(side, f){
@@ -616,7 +615,6 @@ function maybeStartBattlePrep(){
 function startBattlePrep(){
   clearBattlePrep();
   battlePrepActive = true;
-  battlePrepCandyUsed = {};
   let remaining = PREP_SECONDS;
   showPrepBanner(remaining);
   setMessage('¡Preparando combate! Tiempo para usar CARAMELORARO.');
@@ -694,11 +692,6 @@ function onRareCandy(user){
   }
   const side = getFightingSide(user);
   if(!side || !F[side].active || F[side].isNpc) return;
-  if(battlePrepCandyUsed[user]){
-    setMessage('🌌 ' + F[side].nick + ' ya usó CARAMELORARO en este combate.');
-    return;
-  }
-  battlePrepCandyUsed[user] = true;
   boostLevels(side, RARE_CANDY_LEVELS);
   setMessage('🌌 ¡' + F[side].nick + ' usó CARAMELORARO! +' + RARE_CANDY_LEVELS + ' niveles.');
 }

@@ -3,9 +3,10 @@
 
   Recibe eventos reales de TikFinity/Interactive a través del servidor (server.py)
   por SSE. Flujo del juego:
-    - El usuario escribe un Pokémon en el chat  -> se recuerda su elección
-    - 🍩 Rosquilla  -> se le asigna ese Pokémon (aleatorio si no eligió) con su foto real
+    - El usuario escribe un Pokémon en el chat  -> se le asigna ese Pokémon (con su foto real)
     - 🦦 Capibara   -> entra a un hueco libre del combate, o a la cola si están llenos
+    - 🎁 Otros regalos de los 2 luchadores -> ataque (monedas = daño). Ganar sube de nivel (+50 HP).
+      Si un luchador deja de atacar pierde vida: 10s -10%, 30s -50%, 60s -100%.
 
   El panel de la derecha es un SIMULADOR de TikFinity (postea a /webhook igual que
   haría TikFinity) para poder probar sin estar en directo.
@@ -310,23 +311,20 @@
   </div>
 
   <div class="grp">
-    <label>🎁 Regalos</label>
-    <div class="row">
-      <button onclick="simGift('assign')">🍩 Rosquilla<br><small>asigna Pokémon</small></button>
-      <button class="alt" onclick="simGift('fight')">🦦 Capibara<br><small>a luchar / cola</small></button>
-    </div>
+    <label>🦦 Capibara — entrar a luchar / cola</label>
+    <button class="alt" onclick="simGift('fight')">🦦 Mandar capibara (usuario de arriba)</button>
   </div>
 
   <div class="grp">
-    <label>⚔️ Ataque de prueba (daño)</label>
-    <input id="in-dmg" type="number" value="20" min="1" max="200" />
+    <label>⚔️ Regalo = ataque (monedas = daño)</label>
+    <input id="in-coins" type="number" value="20" min="1" max="9999" />
     <div class="row">
-      <button onclick="simAttack('top')">Dañar TOP 1</button>
-      <button onclick="simAttack('bot')">Dañar TOP 2</button>
+      <button onclick="simFighterAttack('top')">⚔️ Ataca TOP 1<br><small>daña al de abajo</small></button>
+      <button onclick="simFighterAttack('bot')">⚔️ Ataca TOP 2<br><small>daña al de arriba</small></button>
     </div>
     <div id="queue-list" class="qlist"></div>
     <button class="alt" onclick="simReset()">🔄 Reiniciar partida</button>
-    <div class="hint">Estos botones POST-ean a /webhook igual que TikFinity. El daño según el regalo lo definimos más adelante.</div>
+    <div class="hint">Solo cuentan los regalos de los 2 luchadores. Si un luchador deja de atacar, su personaje pierde vida (10s/30s/60s).</div>
   </div>
 </div>
 
@@ -376,15 +374,16 @@ function spriteCandidates(name, side){
 
 /* ============ Estado del juego ============ */
 // Dos slots activos del combate
-function emptyFighter(){ return { user:'', nick:'', mon:'', img:'', hp:0, max:100, lv:5, active:false }; }
+function emptyFighter(){ return { user:'', nick:'', mon:'', img:'', hp:0, max:100, lv:1, active:false, lastAct:0, decay:{} }; }
 const F = { top: emptyFighter(), bot: emptyFighter() };
 // Cola de retadores y registro de elecciones por usuario
 let queue = [];
-let registry = {};   // username -> { nick, mon, img }
+let registry = {};        // username -> { nick, mon, img }
+let battleLocked = false;  // true mientras se resuelve un KO (evita dobles)
 
 /* ============ Pintar combatientes ============ */
 function setFighter(side, f){
-  F[side] = { user:f.user, nick:f.nick, mon:f.mon, img:f.img, hp:100, max:100, lv:5, active:true };
+  F[side] = { user:f.user, nick:f.nick, mon:f.mon, img:f.img, hp:100, max:100, lv:1, active:true, lastAct:Date.now(), decay:{} };
   const img = document.getElementById('mon-' + side);
   img.classList.remove('anim-faint','anim-shake','anim-blink','anim-lunge');
   const cands = spriteCandidates(f.mon, side);
@@ -432,17 +431,9 @@ function onComment(user, nick, img, comment){
   const entry = findMon(comment);
   if(entry){
     r.mon = entry.name;
-    setMessage('📝 ' + nick + ' eligió ' + entry.name + '. ¡Manda 🍩 para jugar!');
+    setMessage('📝 ' + nick + ' eligió ' + entry.name + '. ¡Manda 🦦 capibara para luchar!');
   }
   registry[user] = r;
-}
-
-function onAssign(user, nick, img){      // 🍩 rosquilla
-  const r = registry[user] || {};
-  r.nick = nick; if(img) r.img = img;
-  if(!r.mon) r.mon = randomMon().name;   // sin elección -> aleatorio
-  registry[user] = r;
-  setMessage('🍩 ¡' + nick + ' tiene a ' + r.mon + '! Manda 🦦 capibara para luchar.');
 }
 
 function onFight(user, nick, img){        // 🦦 capibara
@@ -467,21 +458,25 @@ function enterBattle(f){
   }
 }
 
-function onAttack(target, dmg){
-  if(!F[target] || !F[target].active || F[target].hp <= 0) return;
-  const attacker = target === 'top' ? 'bot' : 'top';
-  doAttack(attacker, target, dmg);
+// Un regalo de un usuario solo cuenta si ese usuario es uno de los 2 luchadores.
+// Su regalo daña al rival. coins = daño.
+function onAttack(user, coins){
+  if(battleLocked || coins <= 0) return;
+  let attacker = null;
+  if(F.top.active && F.top.user === user) attacker = 'top';
+  else if(F.bot.active && F.bot.user === user) attacker = 'bot';
+  if(!attacker) return;                         // espectador: su regalo no hace daño
+  const target = attacker === 'top' ? 'bot' : 'top';
+  if(!F[target].active || F[target].hp <= 0) return;
+  registerActivity(attacker);                   // resetea su contador de inactividad
+  doAttack(attacker, target, coins);
 }
 
 function doAttack(attacker, target, dmg){
   const move = ATTACKS[Math.floor(Math.random() * ATTACKS.length)];
-  if(F[attacker] && F[attacker].active){
-    const aImg = document.getElementById('mon-' + attacker);
-    aImg.classList.remove('anim-lunge'); void aImg.offsetWidth; aImg.classList.add('anim-lunge');
-    setMessage('¡' + F[attacker].nick + ' usó ' + move + '!');
-  } else {
-    setMessage('¡' + move + '!');
-  }
+  const aImg = document.getElementById('mon-' + attacker);
+  aImg.classList.remove('anim-lunge'); void aImg.offsetWidth; aImg.classList.add('anim-lunge');
+  setMessage('¡' + F[attacker].nick + ' usó ' + move + '! (-' + dmg + ')');
 
   setTimeout(() => {
     const tImg = document.getElementById('mon-' + target);
@@ -492,19 +487,43 @@ function doAttack(attacker, target, dmg){
     F[target].hp = Math.max(0, F[target].hp - dmg);
     render();
 
-    if(F[target].hp <= 0){
-      const loserNick = F[target].nick;
-      const winnerNick = (F[attacker] && F[attacker].active) ? F[attacker].nick : 'el rival';
-      setTimeout(() => {
-        tImg.classList.add('anim-faint');
-        setMessage('¡' + loserNick + ' se debilitó! 🏆 Gana ' + winnerNick);
-        setTimeout(() => advanceQueue(target, attacker), 1700);
-      }, 450);
-    }
+    if(F[target].hp <= 0) faintFighter(target, attacker);
   }, 320);
 }
 
-// El perdedor deja su hueco; entra el siguiente de la cola (a vida completa).
+function registerActivity(side){
+  F[side].lastAct = Date.now();
+  F[side].decay = {};
+}
+
+// Al ganar: sube de nivel, +50 de vida máxima y se cura del todo.
+function levelUp(side){
+  if(!F[side].active) return;
+  F[side].lv  += 1;
+  F[side].max += 50;
+  F[side].hp   = F[side].max;
+  render();
+}
+
+function faintFighter(loser, winner){
+  if(battleLocked) return;
+  battleLocked = true;
+  F[loser].hp = 0; render();
+  const tImg = document.getElementById('mon-' + loser);
+  tImg.classList.add('anim-faint');
+  const loserNick = F[loser].nick;
+  setTimeout(() => {
+    if(F[winner] && F[winner].active){
+      levelUp(winner);
+      setMessage('¡' + loserNick + ' se debilitó! 🏆 ' + F[winner].nick + ' sube a Nv' + F[winner].lv + ' (+50 HP)');
+    } else {
+      setMessage('¡' + loserNick + ' se debilitó!');
+    }
+  }, 450);
+  setTimeout(() => advanceQueue(loser, winner), 1900);
+}
+
+// El perdedor deja su hueco; entra el siguiente de la cola (a vida completa, Nv1).
 function advanceQueue(loserSide, winnerSide){
   if(queue.length){
     const next = queue.shift();
@@ -515,7 +534,37 @@ function advanceQueue(loserSide, winnerSide){
   } else {
     clearFighter(loserSide);
     const champ = (F[winnerSide] && F[winnerSide].active) ? F[winnerSide].nick : '';
-    setMessage('🏆 ' + champ + ' sigue invicto. ¡Envía 🦦 para retarle!');
+    setMessage(champ ? ('🏆 ' + champ + ' sigue invicto. ¡Envía 🦦 para retarle!') : '¡Esperando jugadores…!');
+  }
+  if(F[winnerSide] && F[winnerSide].active) registerActivity(winnerSide);  // respiro tras el KO
+  battleLocked = false;
+}
+
+// Inactividad: si un luchador deja de atacar pierde vida (solo si hay 2 luchadores).
+// 10s -> -10% ; 30s -> -50% ; 60s -> -100% (se debilita).
+const DECAY_STEPS = [[60, 1.0], [30, 0.5], [10, 0.1]];
+function decayTick(){
+  if(battleLocked) return;
+  if(!(F.top.active && F.bot.active)) return;   // con un solo personaje no decae
+  const now = Date.now();
+  for(const side of ['top','bot']){
+    const f = F[side];
+    if(!f.active || f.hp <= 0) continue;
+    const idle = (now - f.lastAct) / 1000;
+    for(const [sec, frac] of DECAY_STEPS){
+      if(idle >= sec && !f.decay[sec]){
+        f.decay[sec] = true;
+        const dmg = Math.round(f.max * frac);
+        f.hp = Math.max(0, f.hp - dmg);
+        const img = document.getElementById('mon-' + side);
+        img.classList.remove('anim-blink'); void img.offsetWidth; img.classList.add('anim-blink');
+        popDamage(side, dmg);
+        setMessage('⏳ ¡' + f.nick + ' pierde vida por no atacar! (-' + dmg + ')');
+        render();
+        if(f.hp <= 0){ faintFighter(side, side === 'top' ? 'bot' : 'top'); return; }
+        break;   // una penalización por personaje y tick
+      }
+    }
   }
 }
 
@@ -526,10 +575,10 @@ function renderQueue(){
 }
 
 function resetGame(){
-  queue = []; registry = {};
+  queue = []; registry = {}; battleLocked = false;
   clearFighter('top'); clearFighter('bot');
   renderQueue();
-  setMessage('¡Listo! Escribe un Pokémon y manda 🍩, luego 🦦 para luchar.');
+  setMessage('¡Listo! Escribe un Pokémon en el chat y manda 🦦 para luchar.');
 }
 
 /* ============ Despachador de eventos (vienen del servidor por SSE) ============ */
@@ -540,9 +589,8 @@ function handleEvent(d){
   const img  = d.imgprofile || d.img || '';
   switch(d.event){
     case 'comment': onComment(user, nick, img, d.comment || ''); break;
-    case 'assign':  onAssign(user, nick, img); break;
     case 'fight':   onFight(user, nick, img); break;
-    case 'attack':  onAttack(d.target || 'top', parseInt(d.dmg || 20, 10)); break;
+    case 'attack':  onAttack(user, parseInt(d.coins || d.dmg || 0, 10)); break;
     case 'reset':   resetGame(); break;
   }
 }
@@ -610,7 +658,10 @@ function sim(evt){
 function simUser(){ const u = val('sim-user') || 'anon'; return { username:u, nickname:u, imgprofile:fakePic(u) }; }
 function simComment(){ sim(Object.assign(simUser(), { event:'comment', comment: val('sim-comment') })); }
 function simGift(kind){ sim(Object.assign(simUser(), { event: kind })); }
-function simAttack(side){ sim({ event:'attack', target: side, dmg: parseInt(val('in-dmg') || '20', 10) }); }
+function simFighterAttack(side){
+  if(!F[side].active){ setMessage('No hay luchador en ese hueco.'); return; }
+  sim({ event:'attack', username: F[side].user, coins: parseInt(val('in-coins') || '20', 10) });
+}
 function simReset(){ sim({ event:'reset' }); }
 
 /* ============ Autocompletado (campo de comentario) ============ */
@@ -665,7 +716,8 @@ document.addEventListener('keydown', e => {
 render();
 renderQueue();
 connectSSE();
-setMessage('¡Listo! Escribe un Pokémon y manda 🍩, luego 🦦 para luchar.');
+setInterval(decayTick, 1000);   // vigila la inactividad de los luchadores
+setMessage('¡Listo! Escribe un Pokémon en el chat y manda 🦦 para luchar.');
 </script>
 </body>
 </html>

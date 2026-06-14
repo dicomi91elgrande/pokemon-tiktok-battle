@@ -60,11 +60,20 @@ https://TU-APP.onrender.com/webhook
 
 POST Body de cada una:
 
-| Disparador        | POST Body |
-|-------------------|-----------|
-| Mensaje de chat   | `{"event":"comment","username":"{username}","nickname":"{nickname}","imgprofile":"{imgprofile}","comment":"{comment}"}` |
-| Regalo 🍩 Rosquilla | `{"event":"assign","username":"{username}","nickname":"{nickname}","imgprofile":"{imgprofile}"}` |
-| Regalo 🦦 Capibara  | `{"event":"fight","username":"{username}","nickname":"{nickname}","imgprofile":"{imgprofile}"}` |
+| Disparador                     | POST Body |
+|--------------------------------|-----------|
+| Mensaje de chat (elige Pokémon) | `{"event":"comment","username":"{username}","nickname":"{nickname}","imgprofile":"{imgprofile}","comment":"{comment}"}` |
+| Regalo 🦦 Capibara (entrar)     | `{"event":"fight","username":"{username}","nickname":"{nickname}","imgprofile":"{imgprofile}"}` |
+| Cualquier OTRO regalo (ataque) | `{"event":"attack","username":"{username}","coins":{coins}}` |
+
+**Cómo funciona el combate:**
+- El comentario asigna el Pokémon (aleatorio si no escribió uno válido). La capibara mete al usuario a luchar o a la cola.
+- Un regalo = ataque, y el daño = sus monedas (`{coins}`). **Solo cuentan los regalos de los 2 que están luchando** (el de arriba daña al de abajo y viceversa); los espectadores no hacen daño.
+- Cada personaje empieza en **Nv1 con 100 HP**. Al ganar sube de nivel y gana **+50 HP** máx.
+- Si un luchador deja de atacar, su personaje pierde vida: **10s → −10%, 30s → −50%, 60s → −100%** (se debilita). Con un solo luchador esto no ocurre.
+
+> ⚠️ Importante: en el webhook de **ataque**, configura el disparador para **excluir la capibara** (si no, la capibara contaría también como ataque). Lo más limpio: usa la capibara solo para "entrar" y el resto de regalos para atacar.
+> Nota: `{coins}` va **sin comillas** (es un número).
 
 ## Paso 5 (opcional) — Proteger el webhook con un token
 

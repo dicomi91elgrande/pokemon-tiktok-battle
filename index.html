@@ -382,15 +382,27 @@ function fuzzyLimit(s){
 function findMon(name){
   const s = slug(name);
   if(!s) return null;
-  const exact = DEX.find(d => d.slug === s);
-  if(exact) return exact;
-  const partial = DEX.find(d => d.slug.startsWith(s) || d.slug.includes(s));
-  if(partial && s.length >= 4) return partial;
+  const candidates = [s];
+  const words = (name || '').toLowerCase().match(/[a-záéíóúüñ♀♂.'’\-]+/gi) || [];
+  for(const w of words){
+    const ws = slug(w);
+    if(ws && !candidates.includes(ws)) candidates.push(ws);
+  }
+  for(const q of candidates){
+    const exact = DEX.find(d => d.slug === q);
+    if(exact) return exact;
+  }
+  for(const q of candidates){
+    const partial = DEX.find(d => (d.slug.startsWith(q) || d.slug.includes(q) || q.includes(d.slug)) && q.length >= 4);
+    if(partial) return partial;
+  }
   let best = null;
-  for(const d of DEX){
-    const dist = editDistance(s, d.slug);
-    if(dist <= fuzzyLimit(s) && (!best || dist < best.dist)){
-      best = { mon: d, dist };
+  for(const q of candidates){
+    for(const d of DEX){
+      const dist = editDistance(q, d.slug);
+      if(dist <= fuzzyLimit(q) && (!best || dist < best.dist)){
+        best = { mon: d, dist };
+      }
     }
   }
   return best ? best.mon : null;
@@ -631,7 +643,7 @@ function handleEvent(d){
   const nick = d.nickname || d.nick || user;
   const img  = d.imgprofile || d.img || '';
   switch(d.event){
-    case 'comment': onComment(user, nick, img, d.comment || ''); break;
+    case 'comment': onComment(user, nick, img, d.comment || d.message || d.text || d.content || ''); break;
     case 'fight':   onFight(user, nick, img); break;
     case 'attack':  onAttack(user, parseInt(d.coins || d.dmg || 0, 10)); break;
     case 'reset':   resetGame(); break;

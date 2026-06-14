@@ -931,20 +931,31 @@ function manualFaint(side){
   faintFighter(side, winner);
 }
 
-// El perdedor deja su hueco; entra el siguiente de la cola (a vida completa, Nv1).
+function fighterForSide(f, side){
+  const moved = Object.assign({}, f);
+  moved.sprite = moved.isNpc ? TEAM_ROCKET_SPRITES[side] : '';
+  return moved;
+}
+
+// Tras un KO, el ganador pasa arriba y el siguiente retador entra abajo.
 function advanceQueue(loserSide, winnerSide){
-  if(queue.length){
-    const next = queue.shift();
-    setFighter(loserSide, next);
-    renderQueue();
-    const champ = (F[winnerSide] && F[winnerSide].active) ? F[winnerSide].nick : 'el campeón';
-    setMessage('¡' + next.nick + ' reta a ' + champ + '! ⚔️');
+  const champion = (F[winnerSide] && F[winnerSide].active) ? fighterForSide(F[winnerSide], 'top') : null;
+  const next = queue.length ? queue.shift() : null;
+
+  clearFighter('top');
+  clearFighter('bot');
+
+  if(champion) setFighter('top', champion);
+
+  if(next){
+    setFighter(champion ? 'bot' : 'top', next);
+    setMessage(champion ? ('¡' + next.nick + ' reta a ' + champion.nick + '! ⚔️') : ('¡' + next.nick + ' entra al combate! ⚔️'));
   } else {
-    clearFighter(loserSide);
-    const champ = (F[winnerSide] && F[winnerSide].active) ? F[winnerSide].nick : '';
+    const champ = champion ? champion.nick : '';
     setMessage(champ ? ('🏆 ' + champ + ' sigue invicto. ¡Envía 🦦 para retarle!') : '¡Esperando jugadores…!');
   }
-  if(F[winnerSide] && F[winnerSide].active) registerActivity(winnerSide);  // respiro tras el KO
+  renderQueue();
+  if(champion) registerActivity('top');  // respiro tras el KO
   battleLocked = false;
   maybeStartBattlePrep();
   syncRocketTimer();

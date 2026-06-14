@@ -209,7 +209,7 @@
 
   /* indicador de conexión con el servidor */
   #conn {
-    position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+    position: absolute; top: calc(50% - 272px); left: 50%; transform: translateX(-50%);
     font-size: 9px; padding: 3px 8px; border-radius: 10px; z-index: 7;
     background: #b04040; color: #fff;
   }
@@ -310,14 +310,13 @@
 <body>
 
 <div id="stage">
+  <div id="conn">○ sin servidor</div>
   <div class="battle" id="battle">
     <div class="field-line" style="top:40%"></div>
     <div class="field-line" style="top:60%"></div>
 
     <div class="platform top"></div>
     <div class="platform bottom"></div>
-
-    <div id="conn">○ sin servidor</div>
 
     <!-- Rival (slot superior) -->
     <img class="mon top" id="mon-top" alt="" />

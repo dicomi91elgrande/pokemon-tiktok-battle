@@ -76,6 +76,7 @@ POST Body de cada una:
 - Las gafas de sol tienen su propio disparador/webhook (`event:"potion"`). Solo funcionan si el usuario está luchando y curan el 50% de la vida máxima de su Pokémon; no hacen daño al rival.
 - La galaxia tiene su propio disparador/webhook (`event:"rare_candy"`). Al empezar cada combate aparece un contador de 20 segundos para usar CARAMELORARO; cada galaxia enviada por un luchador en ese tiempo suma 10 niveles y la vida máxima correspondiente. Fuera de ese contador no tiene efecto.
 - Cada personaje empieza en **Nv1 con 100 HP**. Al ganar sube de nivel, gana **+50 HP** máx. y vuelve a curarse al **100%**.
+- Cuando termina el contador previo y empieza el combate, suena en bucle `assets/battle-music.mp3` como música de fondo a volumen bajo.
 - Los luchadores ya no pierden vida por inactividad. Puedes debilitar manualmente al luchador de arriba o abajo desde el panel de control del overlay.
 - Si durante 60 segundos solo hay un luchador humano y nadie entra a retarle, aparece **TEAM ROCKET** en el hueco libre con el mismo nivel. Ataca a los 15s, 30s y 60s quitando el 10%, 50% y 100% de la vida máxima del rival.
 

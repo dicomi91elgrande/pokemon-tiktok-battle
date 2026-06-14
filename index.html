@@ -410,6 +410,8 @@ const TEAM_ROCKET_USER = '__team_rocket__';
 const TEAM_ROCKET_SPRITES = { top: 'assets/team-rocket-front.png', bot: 'assets/team-rocket-back.png' };
 const TEAM_ROCKET_WAIT_MS = 60000;
 const TEAM_ROCKET_ATTACKS = [[15, 0.1], [30, 0.5], [60, 1.0]];
+const BATTLE_MUSIC_SRC = 'assets/battle-music.mp3';
+const BATTLE_MUSIC_VOLUME = 0.15;
 
 /* Los 151 Pokémon de la 1ª generación (los únicos permitidos) */
 const DEX_NAMES = [
@@ -506,6 +508,28 @@ let rocketAttackTimers = [];
 let battlePrepActive = false;
 let battlePrepTimer = null;
 let battlePrepInterval = null;
+let battleMusic = null;
+
+function getBattleMusic(){
+  if(!battleMusic){
+    battleMusic = new Audio(BATTLE_MUSIC_SRC);
+    battleMusic.loop = true;
+    battleMusic.volume = BATTLE_MUSIC_VOLUME;
+  }
+  return battleMusic;
+}
+
+function startBattleMusic(){
+  const audio = getBattleMusic();
+  audio.volume = BATTLE_MUSIC_VOLUME;
+  audio.play().catch(() => {});
+}
+
+function stopBattleMusic(){
+  if(!battleMusic) return;
+  battleMusic.pause();
+  battleMusic.currentTime = 0;
+}
 
 /* ============ Pintar combatientes ============ */
 function setFighter(side, f){
@@ -665,6 +689,7 @@ function finishBattlePrep(){
   if(!battlePrepActive) return;
   clearBattlePrep();
   if(activeBattleReady()){
+    startBattleMusic();
     setMessage('¡Comienza el combate!');
     const rocketSide = F.top.isNpc ? 'top' : F.bot.isNpc ? 'bot' : null;
     if(rocketSide) scheduleTeamRocketAttacks(rocketSide, rocketSide === 'top' ? 'bot' : 'top');
@@ -875,6 +900,7 @@ function faintFighter(loser, winner){
   if(battleLocked) return;
   clearBattlePrep();
   clearRocketAttacks();
+  stopBattleMusic();
   battleLocked = true;
   F[loser].hp = 0; render();
   const tImg = document.getElementById('mon-' + loser);
@@ -936,6 +962,7 @@ function resetGame(){
     clearTimeout(rocketSpawnTimer);
     rocketSpawnTimer = null;
   }
+  stopBattleMusic();
   clearBattlePrep();
   clearRocketAttacks();
   queue = []; registry = {}; battleLocked = false;

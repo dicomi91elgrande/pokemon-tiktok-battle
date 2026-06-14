@@ -490,6 +490,11 @@ function onComment(user, nick, img, comment){
 function onFight(user, nick, img){        // 🦦 capibara
   const r = registry[user] || {};
   r.nick = nick; if(img) r.img = img;
+  if(isAlreadyWaitingOrFighting(user)){
+    registry[user] = r;
+    setMessage('🧍 ' + nick + ' ya está en combate o en la cola.');
+    return;
+  }
   if(!r.mon){
     registry[user] = r;
     setMessage('📝 ' + nick + ', escribe primero un Pokémon válido en el chat.');
@@ -497,6 +502,12 @@ function onFight(user, nick, img){        // 🦦 capibara
   }
   registry[user] = r;
   enterBattle({ user, nick: r.nick, mon: r.mon, img: r.img });
+}
+
+function isAlreadyWaitingOrFighting(user){
+  return (F.top.active && F.top.user === user) ||
+    (F.bot.active && F.bot.user === user) ||
+    queue.some(c => c.user === user);
 }
 
 function enterBattle(f){

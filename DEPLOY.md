@@ -65,11 +65,12 @@ POST Body de cada una:
 | Mensaje de chat (elige Pokémon) | `{"event":"comment","username":"{username}","nickname":"{nickname}","imgprofile":"{imgprofile}","comment":"{comment}"}` |
 | Regalo 🦦 Capibara (entrar)     | `{"event":"fight","username":"{username}","nickname":"{nickname}","imgprofile":"{imgprofile}"}` |
 | Cualquier OTRO regalo (ataque) | `{"event":"attack","username":"{username}","nickname":"{nickname}","imgprofile":"{imgprofile}","coins":{coins}}` |
+| Regalo pistola de dinero | `{"event":"money_gun","username":"{username}","nickname":"{nickname}","imgprofile":"{imgprofile}"}` |
 
 **Cómo funciona el combate:**
 - El comentario asigna el Pokémon. La capibara mete al usuario a luchar o a la cola si antes escribió un Pokémon válido. Si ese usuario ya está luchando, la capibara hace 30 de daño al rival.
-- Un regalo = ataque, y el daño = sus monedas (`{coins}`). **Solo cuentan los regalos de los 2 que están luchando** (el de arriba daña al de abajo y viceversa); los espectadores no hacen daño, salvo la pistola de dinero.
-- La pistola de dinero (`500` monedas) pone al usuario primero en la cola si no está luchando. Si ese usuario ya está luchando, hace `500` de daño al rival.
+- Un regalo = ataque, y el daño = sus monedas (`{coins}`). **Solo cuentan los regalos de los 2 que están luchando** (el de arriba daña al de abajo y viceversa); los espectadores no hacen daño.
+- La pistola de dinero tiene su propio disparador/webhook (`event:"money_gun"`). Pone al usuario primero en la cola si no está luchando. Si ese usuario ya está luchando, hace `500` de daño al rival.
 - Cada personaje empieza en **Nv1 con 100 HP**. Al ganar sube de nivel y gana **+50 HP** máx.
 - Los luchadores ya no pierden vida por inactividad. Puedes debilitar manualmente al luchador de arriba o abajo desde el panel de control del overlay.
 

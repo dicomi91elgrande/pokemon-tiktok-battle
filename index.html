@@ -501,7 +501,7 @@ function onFight(user, nick, img){        // 🦦 capibara
   const fightingSide = getFightingSide(user);
   if(fightingSide){
     registry[user] = r;
-    capybaraAttack(fightingSide);
+    giftAttack(fightingSide, 30);
     return;
   }
   if(isInQueue(user)){
@@ -528,12 +528,12 @@ function isInQueue(user){
   return queue.some(c => c.user === user);
 }
 
-function capybaraAttack(attacker){
+function giftAttack(attacker, dmg){
   if(battleLocked) return;
   const target = attacker === 'top' ? 'bot' : 'top';
   if(!F[target].active || F[target].hp <= 0) return;
   registerActivity(attacker);
-  doAttack(attacker, target, 30);
+  doAttack(attacker, target, dmg);
 }
 
 function enterBattle(f){
@@ -550,17 +550,14 @@ function enterBattle(f){
   }
 }
 
-// Un regalo de un usuario solo hace daño si ese usuario es uno de los 2 luchadores.
-// La pistola de dinero (500) permite a un espectador ponerse primero en cola.
+// Un regalo de un usuario solo cuenta si ese usuario es uno de los 2 luchadores.
+// Su regalo daña al rival. coins = daño.
 function onAttack(user, nick, img, coins){
   if(battleLocked || coins <= 0) return;
   let attacker = null;
   if(F.top.active && F.top.user === user) attacker = 'top';
   else if(F.bot.active && F.bot.user === user) attacker = 'bot';
-  if(!attacker){
-    if(coins === MONEY_GUN_COINS) moneyGunPriority(user, nick, img);
-    return;
-  }
+  if(!attacker) return;
   const target = attacker === 'top' ? 'bot' : 'top';
   if(!F[target].active || F[target].hp <= 0) return;
   registerActivity(attacker);
@@ -568,6 +565,12 @@ function onAttack(user, nick, img, coins){
 }
 
 function moneyGunPriority(user, nick, img){
+  if(battleLocked) return;
+  const fightingSide = getFightingSide(user);
+  if(fightingSide){
+    giftAttack(fightingSide, MONEY_GUN_COINS);
+    return;
+  }
   const r = registry[user] || {};
   r.nick = r.nick || nick || user;
   if(img) r.img = img;
@@ -696,6 +699,7 @@ function handleEvent(d){
     case 'comment': onComment(user, nick, img, d.comment || d.message || d.text || d.content || ''); break;
     case 'fight':   onFight(user, nick, img); break;
     case 'attack':  onAttack(user, nick, img, parseInt(d.coins || d.dmg || 0, 10)); break;
+    case 'money_gun': moneyGunPriority(user, nick, img); break;
     case 'reset':   resetGame(); break;
   }
 }
@@ -767,7 +771,7 @@ function simFighterAttack(side){
   if(!F[side].active){ setMessage('No hay luchador en ese hueco.'); return; }
   sim({ event:'attack', username: F[side].user, coins: parseInt(val('in-coins') || '20', 10) });
 }
-function simMoneyGun(){ sim(Object.assign(simUser(), { event:'attack', coins: MONEY_GUN_COINS })); }
+function simMoneyGun(){ sim(Object.assign(simUser(), { event:'money_gun' })); }
 function simReset(){ sim({ event:'reset' }); }
 
 /* ============ Autocompletado (campo de comentario) ============ */

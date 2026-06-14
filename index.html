@@ -239,6 +239,14 @@
   #panel button small { font-weight: 400; opacity: .8; font-size: 9px; }
   #panel button:hover { filter: brightness(1.1); }
   #panel .hint { font-size: 10px; color:#678; margin-top:8px; line-height:1.4; }
+  #panel .toggle {
+    display: flex; align-items: center; gap: 8px;
+    margin-top: 8px; padding: 8px;
+    border: 1px solid #2a3550; border-radius: 6px;
+    background: #0a0d12; color: #dff;
+    font-size: 11px; line-height: 1.35;
+  }
+  #panel .toggle input { width: auto; flex: 0 0 auto; }
 
   /* autocompletado de Pokémon */
   .ac { position: relative; }
@@ -375,6 +383,10 @@
   <div class="grp">
     <label>🦦 Capibara — entrar a luchar / cola</label>
     <button class="alt" onclick="simGift('fight')">🦦 Mandar capibara (usuario de arriba)</button>
+    <label class="toggle">
+      <input id="any-gift-entry" type="checkbox" onchange="updateAnyGiftEntryMode()" />
+      <span>Cualquier regalo mete al Pokémon elegido en batalla/cola</span>
+    </label>
   </div>
 
   <div class="grp">
@@ -513,6 +525,7 @@ let battlePrepActive = false;
 let battlePrepTimer = null;
 let battlePrepInterval = null;
 let battleMusic = null;
+let anyGiftEntryEnabled = false;
 
 function getBattleMusic(){
   if(!battleMusic){
@@ -608,14 +621,20 @@ function onComment(user, nick, img, comment){
 }
 
 function onFight(user, nick, img){        // 🦦 capibara
-  const r = registry[user] || {};
-  r.nick = nick; if(img) r.img = img;
   const fightingSide = getFightingSide(user);
   if(fightingSide){
+    const r = registry[user] || {};
+    r.nick = nick; if(img) r.img = img;
     registry[user] = r;
     giftAttack(fightingSide, 30);
     return;
   }
+  tryEnterFromGift(user, nick, img);
+}
+
+function tryEnterFromGift(user, nick, img){
+  const r = registry[user] || {};
+  r.nick = nick; if(img) r.img = img;
   if(isInQueue(user)){
     registry[user] = r;
     setMessage('🧍 ' + nick + ' ya está en la cola.');
@@ -721,11 +740,15 @@ function showPrepBanner(seconds){
 // Un regalo de un usuario solo cuenta si ese usuario es uno de los 2 luchadores.
 // Su regalo daña al rival. coins = daño.
 function onAttack(user, nick, img, coins){
-  if(battleLocked || battlePrepActive || coins <= 0) return;
+  if(battleLocked || coins <= 0) return;
   let attacker = null;
   if(F.top.active && F.top.user === user) attacker = 'top';
   else if(F.bot.active && F.bot.user === user) attacker = 'bot';
-  if(!attacker) return;
+  if(!attacker){
+    if(anyGiftEntryEnabled) tryEnterFromGift(user, nick, img);
+    return;
+  }
+  if(battlePrepActive) return;
   const target = attacker === 'top' ? 'bot' : 'top';
   if(!F[target].active || F[target].hp <= 0) return;
   registerActivity(attacker);
@@ -1092,6 +1115,14 @@ function simFighterGift(side, event){
 function simPotion(side){ simFighterGift(side, 'potion'); }
 function simRareCandy(side){ simFighterGift(side, 'rare_candy'); }
 function simReset(){ sim({ event:'reset' }); }
+
+function updateAnyGiftEntryMode(){
+  const box = document.getElementById('any-gift-entry');
+  anyGiftEntryEnabled = !!(box && box.checked);
+  setMessage(anyGiftEntryEnabled
+    ? 'Modo entrada libre activado: cualquier regalo sirve para entrar si ya eligieron Pokémon.'
+    : 'Modo entrada libre desactivado: solo la capibara mete a luchar.');
+}
 
 /* ============ Autocompletado (campo de comentario) ============ */
 function renderAC(side, onPick){

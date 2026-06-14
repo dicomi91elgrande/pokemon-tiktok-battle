@@ -149,22 +149,15 @@
     width: 64px; height: 64px;
     border-radius: 50%;
     border: 3px solid var(--gold);
-    background: linear-gradient(135deg, #3868d8, #38b880) center/cover no-repeat;
+    background: #222 center/cover no-repeat;
     box-shadow: 0 3px 8px rgba(0,0,0,.4);
     z-index: 5;
     display: none;
-    align-items: center;
-    justify-content: center;
-    color: #fff;
-    font-size: 20px;
-    text-shadow: 1px 1px 0 rgba(0,0,0,.35);
   }
-  .avatar.has-img { font-size: 0; }
   .avatar .rank {
     position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%);
     font-size: 8px; color:#fff; background: var(--gold);
     padding: 2px 5px; border-radius: 8px; border: 2px solid #fff; white-space: nowrap;
-    max-width: 96px; overflow: hidden; text-overflow: ellipsis;
   }
   .avatar.top    { top: 26px; right: 88px; }
   .avatar.bottom { bottom: 248px; left: 66px; }
@@ -401,22 +394,9 @@ function setFighter(side, f){
   img.src = cands[0];
 
   const av = document.getElementById('avatar-' + side);
-  av.textContent = avatarInitials(f.nick || f.user || '?');
-  const rank = document.createElement('span');
-  rank.className = 'rank';
-  rank.textContent = f.nick || f.user || '?';
-  rank.title = f.nick || f.user || '';
-  av.appendChild(rank);
-  av.classList.toggle('has-img', !!f.img);
-  av.style.backgroundImage = f.img
-    ? "url('" + f.img + "'), linear-gradient(135deg, #3868d8, #38b880)"
-    : '';
-  av.style.display = 'flex';
+  av.style.backgroundImage = f.img ? "url('" + f.img + "')" : '';
+  av.style.display = 'block';
   render();
-}
-
-function avatarInitials(name){
-  return (name || '?').trim().split(/\s+/).slice(0, 2).map(p => p[0]).join('').toUpperCase() || '?';
 }
 
 function clearFighter(side){
@@ -425,10 +405,7 @@ function clearFighter(side){
   img.classList.remove('anim-faint','anim-shake','anim-blink','anim-lunge');
   img.style.opacity = 0;
   img.removeAttribute('src');
-  const av = document.getElementById('avatar-' + side);
-  av.classList.remove('has-img');
-  av.style.backgroundImage = '';
-  av.style.display = 'none';
+  document.getElementById('avatar-' + side).style.display = 'none';
   render();
 }
 

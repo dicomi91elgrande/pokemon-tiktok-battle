@@ -355,14 +355,45 @@ const DEX_NAMES = [
 
 function slug(n){
   return (n || '').toLowerCase().trim()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
     .replace(/♀/g,'f').replace(/♂/g,'m')
-    .replace(/[.'’\-\s]/g,'');
+    .replace(/[.'’\-\s]/g,'')
+    .replace(/[^a-z0-9]/g,'');
 }
 const DEX = DEX_NAMES.map((name, i) => ({ num: i + 1, name, slug: slug(name) }));
+function editDistance(a, b){
+  const dp = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+  for(let j = 1; j <= b.length; j++) dp[0][j] = j;
+  for(let i = 1; i <= a.length; i++){
+    for(let j = 1; j <= b.length; j++){
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      dp[i][j] = Math.min(
+        dp[i - 1][j] + 1,
+        dp[i][j - 1] + 1,
+        dp[i - 1][j - 1] + cost
+      );
+    }
+  }
+  return dp[a.length][b.length];
+}
+function fuzzyLimit(s){
+  return s.length >= 8 ? 2 : 1;
+}
 function findMon(name){
   const s = slug(name);
   if(!s) return null;
-  return DEX.find(d => d.slug === s) || null;
+  const exact = DEX.find(d => d.slug === s);
+  if(exact) return exact;
+  const partial = DEX.find(d => d.slug.startsWith(s) || d.slug.includes(s));
+  if(partial && s.length >= 4) return partial;
+  let best = null;
+  for(const d of DEX){
+    const dist = editDistance(s, d.slug);
+    if(dist <= fuzzyLimit(s) && (!best || dist < best.dist)){
+      best = { mon: d, dist };
+    }
+  }
+  return best ? best.mon : null;
 }
 function randomMon(){ return DEX[Math.floor(Math.random() * DEX.length)]; }
 

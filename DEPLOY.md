@@ -73,6 +73,7 @@ POST Body de cada una:
 - La pistola de dinero tiene su propio disparador/webhook (`event:"money_gun"`). Pone al usuario primero en la cola si no está luchando. Si ese usuario ya está luchando, hace `500` de daño al rival.
 - Cada personaje empieza en **Nv1 con 100 HP**. Al ganar sube de nivel y gana **+50 HP** máx.
 - Los luchadores ya no pierden vida por inactividad. Puedes debilitar manualmente al luchador de arriba o abajo desde el panel de control del overlay.
+- Si durante 60 segundos solo hay un luchador humano y nadie entra a retarle, aparece **TEAM ROCKET** en el hueco libre con el mismo nivel. Ataca a los 15s, 30s y 60s quitando el 10%, 50% y 100% de la vida máxima del rival.
 
 > ⚠️ Importante: en el webhook de **ataque**, configura el disparador para **excluir la capibara**. La capibara ya se gestiona con el webhook `fight`: entra/cola si el usuario no está luchando, y hace 30 de daño si ya está luchando.
 > Nota: `{coins}` va **sin comillas** (es un número).

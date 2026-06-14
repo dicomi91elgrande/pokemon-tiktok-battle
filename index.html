@@ -158,6 +158,7 @@
     position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%);
     font-size: 8px; color:#fff; background: var(--gold);
     padding: 2px 5px; border-radius: 8px; border: 2px solid #fff; white-space: nowrap;
+    max-width: 96px; overflow: hidden; text-overflow: ellipsis;
   }
   .avatar.top    { top: 26px; right: 88px; }
   .avatar.bottom { bottom: 248px; left: 66px; }
@@ -395,6 +396,9 @@ function setFighter(side, f){
 
   const av = document.getElementById('avatar-' + side);
   av.style.backgroundImage = f.img ? "url('" + f.img + "')" : '';
+  const rank = av.querySelector('.rank');
+  rank.textContent = f.nick || f.user || (side === 'top' ? 'TOP 1' : 'TOP 2');
+  rank.title = f.nick || f.user || '';
   av.style.display = 'block';
   render();
 }
@@ -405,7 +409,11 @@ function clearFighter(side){
   img.classList.remove('anim-faint','anim-shake','anim-blink','anim-lunge');
   img.style.opacity = 0;
   img.removeAttribute('src');
-  document.getElementById('avatar-' + side).style.display = 'none';
+  const av = document.getElementById('avatar-' + side);
+  const rank = av.querySelector('.rank');
+  rank.textContent = side === 'top' ? '🥇 TOP 1' : '🥈 TOP 2';
+  rank.title = '';
+  av.style.display = 'none';
   render();
 }
 

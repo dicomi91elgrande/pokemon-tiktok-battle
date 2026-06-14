@@ -4,7 +4,8 @@
   Recibe eventos reales de TikFinity/Interactive a través del servidor (server.py)
   por SSE. Flujo del juego:
     - El usuario escribe un Pokémon en el chat  -> se le asigna ese Pokémon (con su foto real)
-    - 🦦 Capibara   -> entra a un hueco libre del combate, o a la cola si están llenos
+    - 🦦 Capibara   -> entra a un hueco libre del combate, o a la cola si están llenos.
+      Si ya está luchando, la capibara ataca con 30 de daño.
     - 🎁 Otros regalos de los 2 luchadores -> ataque (monedas = daño). Ganar sube de nivel (+50 HP).
       Si un luchador deja de atacar pierde vida: 10s -10%, 30s -50%, 60s -100%.
 
@@ -490,9 +491,15 @@ function onComment(user, nick, img, comment){
 function onFight(user, nick, img){        // 🦦 capibara
   const r = registry[user] || {};
   r.nick = nick; if(img) r.img = img;
-  if(isAlreadyWaitingOrFighting(user)){
+  const fightingSide = getFightingSide(user);
+  if(fightingSide){
     registry[user] = r;
-    setMessage('🧍 ' + nick + ' ya está en combate o en la cola.');
+    capybaraAttack(fightingSide);
+    return;
+  }
+  if(isInQueue(user)){
+    registry[user] = r;
+    setMessage('🧍 ' + nick + ' ya está en la cola.');
     return;
   }
   if(!r.mon){
@@ -504,10 +511,22 @@ function onFight(user, nick, img){        // 🦦 capibara
   enterBattle({ user, nick: r.nick, mon: r.mon, img: r.img });
 }
 
-function isAlreadyWaitingOrFighting(user){
-  return (F.top.active && F.top.user === user) ||
-    (F.bot.active && F.bot.user === user) ||
-    queue.some(c => c.user === user);
+function getFightingSide(user){
+  if(F.top.active && F.top.user === user) return 'top';
+  if(F.bot.active && F.bot.user === user) return 'bot';
+  return null;
+}
+
+function isInQueue(user){
+  return queue.some(c => c.user === user);
+}
+
+function capybaraAttack(attacker){
+  if(battleLocked) return;
+  const target = attacker === 'top' ? 'bot' : 'top';
+  if(!F[target].active || F[target].hp <= 0) return;
+  registerActivity(attacker);
+  doAttack(attacker, target, 30);
 }
 
 function enterBattle(f){

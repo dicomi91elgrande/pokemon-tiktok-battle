@@ -67,12 +67,12 @@ POST Body de cada una:
 | Cualquier OTRO regalo (ataque) | `{"event":"attack","username":"{username}","coins":{coins}}` |
 
 **Cómo funciona el combate:**
-- El comentario asigna el Pokémon. La capibara solo mete al usuario a luchar o a la cola si antes escribió un Pokémon válido.
+- El comentario asigna el Pokémon. La capibara mete al usuario a luchar o a la cola si antes escribió un Pokémon válido. Si ese usuario ya está luchando, la capibara hace 30 de daño al rival.
 - Un regalo = ataque, y el daño = sus monedas (`{coins}`). **Solo cuentan los regalos de los 2 que están luchando** (el de arriba daña al de abajo y viceversa); los espectadores no hacen daño.
 - Cada personaje empieza en **Nv1 con 100 HP**. Al ganar sube de nivel y gana **+50 HP** máx.
 - Si un luchador deja de atacar, su personaje pierde vida: **10s → −10%, 30s → −50%, 60s → −100%** (se debilita). Con un solo luchador esto no ocurre.
 
-> ⚠️ Importante: en el webhook de **ataque**, configura el disparador para **excluir la capibara** (si no, la capibara contaría también como ataque). Lo más limpio: usa la capibara solo para "entrar" y el resto de regalos para atacar.
+> ⚠️ Importante: en el webhook de **ataque**, configura el disparador para **excluir la capibara**. La capibara ya se gestiona con el webhook `fight`: entra/cola si el usuario no está luchando, y hace 30 de daño si ya está luchando.
 > Nota: `{coins}` va **sin comillas** (es un número).
 
 ## Paso 5 (opcional) — Proteger el webhook con un token

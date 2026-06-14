@@ -258,7 +258,28 @@
   .ac-item img { width: 30px; height: 30px; image-rendering: pixelated; }
 
   /* cola de retadores */
-  .qlist { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; min-height: 16px; }
+  .queue-board {
+    position: absolute;
+    left: 50%;
+    top: calc(50% + 252px);
+    transform: translateX(-50%);
+    width: min(720px, calc(100vw - 32px));
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 10px;
+    color: #dff;
+    z-index: 10;
+    pointer-events: none;
+  }
+  .queue-title {
+    flex: 0 0 auto;
+    font-size: 10px;
+    color: #8fd;
+    text-shadow: 1px 1px 0 #000;
+  }
+  .qlist { display: flex; flex-wrap: wrap; gap: 4px; min-height: 16px; }
   .qchip {
     font-size: 10px; background: #1d2a44; color: #bdf;
     padding: 3px 7px; border-radius: 10px; border: 1px solid #2a3550;
@@ -316,6 +337,10 @@
       <b id="prep-count">20</b>
     </div>
   </div>
+  <div class="queue-board">
+    <span class="queue-title">COLA</span>
+    <div id="queue-list" class="qlist"></div>
+  </div>
 </div>
 
 <!-- ====== Panel SIMULADOR de TikFinity (postea a /webhook) ====== -->
@@ -357,7 +382,6 @@
       <button class="alt" onclick="manualFaint('top')">☠️ Debilitar arriba</button>
       <button class="alt" onclick="manualFaint('bot')">☠️ Debilitar abajo</button>
     </div>
-    <div id="queue-list" class="qlist"></div>
     <button class="alt" onclick="simReset()">🔄 Reiniciar partida</button>
     <div class="hint">Solo cuentan los regalos de los 2 luchadores. La vida no baja por inactividad; usa los botones de control para debilitar manualmente.</div>
   </div>

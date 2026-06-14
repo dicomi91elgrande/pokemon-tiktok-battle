@@ -67,7 +67,7 @@ POST Body de cada una:
 | Cualquier OTRO regalo (ataque) | `{"event":"attack","username":"{username}","coins":{coins}}` |
 
 **Cómo funciona el combate:**
-- El comentario asigna el Pokémon (aleatorio si no escribió uno válido). La capibara mete al usuario a luchar o a la cola.
+- El comentario asigna el Pokémon. La capibara solo mete al usuario a luchar o a la cola si antes escribió un Pokémon válido.
 - Un regalo = ataque, y el daño = sus monedas (`{coins}`). **Solo cuentan los regalos de los 2 que están luchando** (el de arriba daña al de abajo y viceversa); los espectadores no hacen daño.
 - Cada personaje empieza en **Nv1 con 100 HP**. Al ganar sube de nivel y gana **+50 HP** máx.
 - Si un luchador deja de atacar, su personaje pierde vida: **10s → −10%, 30s → −50%, 60s → −100%** (se debilita). Con un solo luchador esto no ocurre.

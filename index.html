@@ -439,7 +439,11 @@ function onComment(user, nick, img, comment){
 function onFight(user, nick, img){        // 🦦 capibara
   const r = registry[user] || {};
   r.nick = nick; if(img) r.img = img;
-  if(!r.mon) r.mon = randomMon().name;
+  if(!r.mon){
+    registry[user] = r;
+    setMessage('📝 ' + nick + ', escribe primero un Pokémon válido en el chat.');
+    return;
+  }
   registry[user] = r;
   enterBattle({ user, nick: r.nick, mon: r.mon, img: r.img });
 }

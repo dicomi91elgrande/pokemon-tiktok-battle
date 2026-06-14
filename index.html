@@ -386,8 +386,12 @@
     </div>
     <button class="alt" onclick="simMoneyGun()">💸 Pistola de dinero<br><small>500 puntos / primero en cola</small></button>
     <div class="row">
-      <button class="alt" onclick="simPotion()">🕶️ Poción<br><small>cura 50%</small></button>
-      <button class="alt" onclick="simRareCandy()">🌌 CARAMELORARO<br><small>+10 Nv</small></button>
+      <button class="alt" onclick="simPotion('top')">🕶️ Poción TOP 1<br><small>cura arriba</small></button>
+      <button class="alt" onclick="simPotion('bot')">🕶️ Poción TOP 2<br><small>cura abajo</small></button>
+    </div>
+    <div class="row">
+      <button class="alt" onclick="simRareCandy('top')">🌌 Caramelo TOP 1<br><small>+10 Nv arriba</small></button>
+      <button class="alt" onclick="simRareCandy('bot')">🌌 Caramelo TOP 2<br><small>+10 Nv abajo</small></button>
     </div>
     <div class="row">
       <button class="alt" onclick="manualFaint('top')">☠️ Debilitar arriba</button>
@@ -1070,8 +1074,12 @@ function simFighterAttack(side){
   sim({ event:'attack', username: F[side].user, coins: parseInt(val('in-coins') || '20', 10) });
 }
 function simMoneyGun(){ sim(Object.assign(simUser(), { event:'money_gun' })); }
-function simPotion(){ sim(Object.assign(simUser(), { event:'potion' })); }
-function simRareCandy(){ sim(Object.assign(simUser(), { event:'rare_candy' })); }
+function simFighterGift(side, event){
+  if(!F[side].active){ setMessage('No hay luchador en ese hueco.'); return; }
+  sim({ event, username: F[side].user, nickname: F[side].nick, imgprofile: F[side].img });
+}
+function simPotion(side){ simFighterGift(side, 'potion'); }
+function simRareCandy(side){ simFighterGift(side, 'rare_candy'); }
 function simReset(){ sim({ event:'reset' }); }
 
 /* ============ Autocompletado (campo de comentario) ============ */

@@ -7,7 +7,7 @@
     - 🦦 Capibara   -> entra a un hueco libre del combate, o a la cola si están llenos.
       Si ya está luchando, la capibara ataca con 30 de daño.
     - 🎁 Otros regalos de los 2 luchadores -> ataque (monedas = daño). Ganar sube de nivel (+50 HP).
-      Si un luchador deja de atacar pierde vida: 10s -10%, 30s -50%, 60s -100%.
+    - El control manual permite debilitar a cualquiera de los dos luchadores.
 
   El panel de la derecha es un SIMULADOR de TikFinity (postea a /webhook igual que
   haría TikFinity) para poder probar sin estar en directo.
@@ -142,7 +142,6 @@
   .hp-num {
     text-align: right; font-size: 10px; margin-top: 6px; letter-spacing: 1px;
   }
-  .infobox.top .hp-num { display: none; }
 
   /* ===== Avatares de TikTok (foto de perfil real) ===== */
   .avatar {
@@ -273,6 +272,7 @@
         <span class="hp-tag">HP</span>
         <div class="hp-track"><div class="hp-fill" id="hp-top"></div></div>
       </div>
+      <div class="hp-num" id="hpnum-top"></div>
     </div>
 
     <!-- Jugador (slot inferior) -->
@@ -324,9 +324,13 @@
       <button onclick="simFighterAttack('top')">⚔️ Ataca TOP 1<br><small>daña al de abajo</small></button>
       <button onclick="simFighterAttack('bot')">⚔️ Ataca TOP 2<br><small>daña al de arriba</small></button>
     </div>
+    <div class="row">
+      <button class="alt" onclick="manualFaint('top')">☠️ Debilitar arriba</button>
+      <button class="alt" onclick="manualFaint('bot')">☠️ Debilitar abajo</button>
+    </div>
     <div id="queue-list" class="qlist"></div>
     <button class="alt" onclick="simReset()">🔄 Reiniciar partida</button>
-    <div class="hint">Solo cuentan los regalos de los 2 luchadores. Si un luchador deja de atacar, su personaje pierde vida (10s/30s/60s).</div>
+    <div class="hint">Solo cuentan los regalos de los 2 luchadores. La vida no baja por inactividad; usa los botones de control para debilitar manualmente.</div>
   </div>
 </div>
 
@@ -472,8 +476,9 @@ function render(){
       : pct > 20 ? 'var(--hp-yellow)' : 'var(--hp-red)';
     document.getElementById('name-' + side).textContent = f.active ? f.nick : 'Esperando…';
     document.getElementById('lv-' + side).textContent = 'Nv' + f.lv;
+    const hpNum = document.getElementById('hpnum-' + side);
+    if(hpNum) hpNum.textContent = f.active ? (f.hp + '/' + f.max) : '';
   }
-  document.getElementById('hpnum-bot').textContent = F.bot.active ? (F.bot.hp + '/' + F.bot.max) : '';
 }
 
 /* ============ Lógica del juego (reacciona a eventos) ============ */
@@ -553,7 +558,7 @@ function onAttack(user, coins){
   if(!attacker) return;                         // espectador: su regalo no hace daño
   const target = attacker === 'top' ? 'bot' : 'top';
   if(!F[target].active || F[target].hp <= 0) return;
-  registerActivity(attacker);                   // resetea su contador de inactividad
+  registerActivity(attacker);
   doAttack(attacker, target, coins);
 }
 
@@ -608,6 +613,16 @@ function faintFighter(loser, winner){
   setTimeout(() => advanceQueue(loser, winner), 1900);
 }
 
+function manualFaint(side){
+  if(battleLocked) return;
+  if(!F[side].active){
+    setMessage('No hay luchador en ese hueco.');
+    return;
+  }
+  const winner = side === 'top' ? 'bot' : 'top';
+  faintFighter(side, winner);
+}
+
 // El perdedor deja su hueco; entra el siguiente de la cola (a vida completa, Nv1).
 function advanceQueue(loserSide, winnerSide){
   if(queue.length){
@@ -623,34 +638,6 @@ function advanceQueue(loserSide, winnerSide){
   }
   if(F[winnerSide] && F[winnerSide].active) registerActivity(winnerSide);  // respiro tras el KO
   battleLocked = false;
-}
-
-// Inactividad: si un luchador deja de atacar pierde vida (solo si hay 2 luchadores).
-// 10s -> -10% ; 30s -> -50% ; 60s -> -100% (se debilita).
-const DECAY_STEPS = [[60, 1.0], [30, 0.5], [10, 0.1]];
-function decayTick(){
-  if(battleLocked) return;
-  if(!(F.top.active && F.bot.active)) return;   // con un solo personaje no decae
-  const now = Date.now();
-  for(const side of ['top','bot']){
-    const f = F[side];
-    if(!f.active || f.hp <= 0) continue;
-    const idle = (now - f.lastAct) / 1000;
-    for(const [sec, frac] of DECAY_STEPS){
-      if(idle >= sec && !f.decay[sec]){
-        f.decay[sec] = true;
-        const dmg = Math.round(f.max * frac);
-        f.hp = Math.max(0, f.hp - dmg);
-        const img = document.getElementById('mon-' + side);
-        img.classList.remove('anim-blink'); void img.offsetWidth; img.classList.add('anim-blink');
-        popDamage(side, dmg);
-        setMessage('⏳ ¡' + f.nick + ' pierde vida por no atacar! (-' + dmg + ')');
-        render();
-        if(f.hp <= 0){ faintFighter(side, side === 'top' ? 'bot' : 'top'); return; }
-        break;   // una penalización por personaje y tick
-      }
-    }
-  }
 }
 
 function renderQueue(){
@@ -801,7 +788,6 @@ document.addEventListener('keydown', e => {
 render();
 renderQueue();
 connectSSE();
-setInterval(decayTick, 1000);   // vigila la inactividad de los luchadores
 setMessage('¡Listo! Escribe un Pokémon en el chat y manda 🦦 para luchar.');
 </script>
 </body>

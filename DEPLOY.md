@@ -70,7 +70,7 @@ POST Body de cada una:
 - El comentario asigna el Pokémon. La capibara mete al usuario a luchar o a la cola si antes escribió un Pokémon válido. Si ese usuario ya está luchando, la capibara hace 30 de daño al rival.
 - Un regalo = ataque, y el daño = sus monedas (`{coins}`). **Solo cuentan los regalos de los 2 que están luchando** (el de arriba daña al de abajo y viceversa); los espectadores no hacen daño.
 - Cada personaje empieza en **Nv1 con 100 HP**. Al ganar sube de nivel y gana **+50 HP** máx.
-- Si un luchador deja de atacar, su personaje pierde vida: **10s → −10%, 30s → −50%, 60s → −100%** (se debilita). Con un solo luchador esto no ocurre.
+- Los luchadores ya no pierden vida por inactividad. Puedes debilitar manualmente al luchador de arriba o abajo desde el panel de control del overlay.
 
 > ⚠️ Importante: en el webhook de **ataque**, configura el disparador para **excluir la capibara**. La capibara ya se gestiona con el webhook `fight`: entra/cola si el usuario no está luchando, y hace 30 de daño si ya está luchando.
 > Nota: `{coins}` va **sin comillas** (es un número).

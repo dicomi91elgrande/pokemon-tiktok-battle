@@ -85,15 +85,16 @@
   /* ===== Sprites ===== */
   .mon {
     position: absolute;
-    image-rendering: pixelated;
-    width: 140px; height: 140px;
-    object-fit: contain;
+    width: 150px; height: 150px;
+    display: flex; align-items: flex-end; justify-content: center;
     filter: drop-shadow(0 4px 2px rgba(0,0,0,.25));
     transition: transform .08s linear, opacity .25s ease;
     opacity: 0;
+    pointer-events: none;
   }
-  .mon.top    { top: 36px;  right: 70px; }
-  .mon.bottom { width: 116px; height: 116px; bottom: 128px; left: 48px; }
+  .mon img { image-rendering: pixelated; display: block; }
+  .mon.top    { top: 20px;  right: 78px; }
+  .mon.bottom { bottom: 120px; left: 68px; }
 
   @keyframes shake {
     0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)}
@@ -363,7 +364,7 @@
     <div class="platform bottom"></div>
 
     <!-- Rival (slot superior) -->
-    <img class="mon top" id="mon-top" alt="" />
+    <div class="mon top" id="mon-top"><img alt="" /></div>
     <div class="avatar top" id="avatar-top"><span class="rank">🥇 TOP 1</span></div>
     <div class="infobox top">
       <div class="turn-timer" id="turn-timer-top"></div>
@@ -387,7 +388,7 @@
     </div>
 
     <!-- Jugador (slot inferior) -->
-    <img class="mon bottom" id="mon-bot" alt="" />
+    <div class="mon bottom" id="mon-bot"><img alt="" /></div>
     <div class="avatar bottom" id="avatar-bot"><span class="rank">🥈 TOP 2</span></div>
     <div class="infobox bottom">
       <div class="turn-timer" id="turn-timer-bot"></div>
@@ -592,6 +593,16 @@ function spriteCandidates(name, side){
   ];
 }
 
+// Escala el sprite a su tamaño nativo ×2.5 como máximo (nítido, sin estirar),
+// sin pasarse del slot (150px). Así todos los Pokémon quedan igual de definidos.
+function sizeSprite(img){
+  const nw = img.naturalWidth, nh = img.naturalHeight;
+  if(!nw || !nh) return;
+  const scale = Math.min(2.5, 150 / nw, 150 / nh);
+  img.style.width  = Math.round(nw * scale) + 'px';
+  img.style.height = Math.round(nh * scale) + 'px';
+}
+
 /* ============ Estado del juego ============ */
 // Dos slots activos del combate
 function emptyFighter(){ return { user:'', nick:'', mon:'', img:'', sprite:'', hp:0, max:100, lv:1, active:false, lastAct:0, decay:{}, isNpc:false }; }
@@ -642,13 +653,14 @@ function setFighter(side, f){
     hp:f.hp || max, max, lv:f.lv || 1, active:true, lastAct:Date.now(), decay:{},
     isNpc:!!f.isNpc
   };
-  const img = document.getElementById('mon-' + side);
-  img.classList.remove('anim-faint','anim-shake','anim-blink','anim-lunge');
+  const el = document.getElementById('mon-' + side);
+  el.classList.remove('anim-faint','anim-shake','anim-blink','anim-lunge');
+  const img = el.querySelector('img');
   const cands = f.sprite ? [f.sprite] : spriteCandidates(f.mon, side);
   let ci = 0;
-  img.onload  = () => { img.style.opacity = 1; };
-  img.onerror = () => { ci++; if(ci < cands.length) img.src = cands[ci]; else img.style.opacity = .15; };
-  img.style.opacity = 1;
+  img.onload  = () => { sizeSprite(img); el.style.opacity = 1; };
+  img.onerror = () => { ci++; if(ci < cands.length) img.src = cands[ci]; else el.style.opacity = .15; };
+  el.style.opacity = 1;
   img.src = cands[0];
 
   const av = document.getElementById('avatar-' + side);
@@ -664,10 +676,11 @@ function setFighter(side, f){
 function clearFighter(side){
   if(F[side].isNpc) clearRocketAttacks();
   F[side] = emptyFighter();
-  const img = document.getElementById('mon-' + side);
-  img.classList.remove('anim-faint','anim-shake','anim-blink','anim-lunge');
-  img.style.opacity = 0;
-  img.removeAttribute('src');
+  const el = document.getElementById('mon-' + side);
+  el.classList.remove('anim-faint','anim-shake','anim-blink','anim-lunge');
+  el.style.opacity = 0;
+  const img = el.querySelector('img');
+  if(img){ img.removeAttribute('src'); img.style.width = ''; img.style.height = ''; }
   const av = document.getElementById('avatar-' + side);
   const rank = av.querySelector('.rank');
   rank.textContent = side === 'top' ? '🥇 TOP 1' : '🥈 TOP 2';

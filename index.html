@@ -151,6 +151,42 @@
     text-align: right; font-size: 10px; letter-spacing: 1px; white-space: nowrap;
   }
 
+  /* ===== Turno activo: borde amarillo + cuenta atrás + opciones ===== */
+  .infobox.active-turn {
+    border-color: #ffd23a;
+    animation: turnGlow 1s ease-in-out infinite alternate;
+  }
+  @keyframes turnGlow {
+    from { box-shadow: inset -3px -3px 0 var(--box-shadow), 0 0 0 3px rgba(255,210,58,.55), 0 0 10px rgba(255,210,58,.4); }
+    to   { box-shadow: inset -3px -3px 0 var(--box-shadow), 0 0 0 4px rgba(255,210,58,.95), 0 0 22px rgba(255,210,58,.7); }
+  }
+
+  .turn-timer {
+    position: absolute; top: -14px; right: -14px;
+    width: 30px; height: 30px; border-radius: 50%;
+    background: #e84040; color: #fff; border: 3px solid #fff;
+    display: none; align-items: center; justify-content: center;
+    font-size: 12px; z-index: 6; box-shadow: 0 2px 6px rgba(0,0,0,.4);
+  }
+  .turn-timer.show { display: flex; }
+
+  .attack-options {
+    position: absolute; width: 290px;
+    display: none; flex-direction: column; gap: 4px; z-index: 6;
+  }
+  .attack-options.show { display: flex; }
+  .attack-options.top    { top: 114px; left: 20px; }
+  .attack-options.bottom { bottom: 204px; right: 20px; }
+  .atk-opt {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--box-cream); border: 3px solid #383838; border-radius: 6px;
+    box-shadow: inset -2px -2px 0 var(--box-shadow);
+    padding: 4px 8px;
+  }
+  .atk-opt img { width: 28px; height: 28px; object-fit: contain; image-rendering: pixelated; flex: 0 0 auto; }
+  .atk-opt .ao-t { font-size: 10px; white-space: nowrap; }
+  .atk-opt .ao-s { font-size: 8px; color: #8a8060; margin-left: auto; white-space: nowrap; padding-left: 8px; }
+
   /* ===== Avatares de TikTok (foto de perfil real) ===== */
   .avatar {
     position: absolute;
@@ -330,6 +366,7 @@
     <img class="mon top" id="mon-top" alt="" />
     <div class="avatar top" id="avatar-top"><span class="rank">🥇 TOP 1</span></div>
     <div class="infobox top">
+      <div class="turn-timer" id="turn-timer-top"></div>
       <div class="ib-row1">
         <span class="ib-name" id="name-top">Esperando…</span>
         <span class="ib-lv" id="lv-top">Nv5</span>
@@ -343,11 +380,17 @@
         <span class="hp-num" id="hpnum-top"></span>
       </div>
     </div>
+    <div class="attack-options top" id="atk-options-top">
+      <div class="atk-opt"><img src="assets/atk-rosquilla.png" alt="" onerror="this.style.display='none'"><span class="ao-t">Simple</span><span class="ao-s">Rosquilla · 10-20</span></div>
+      <div class="atk-opt"><img src="assets/atk-gg.png" alt="" onerror="this.style.display='none'"><span class="ao-t">Intermedio</span><span class="ao-s">Super GG · 20-100</span></div>
+      <div class="atk-opt"><img src="assets/atk-manifestando.png" alt="" onerror="this.style.display='none'"><span class="ao-t">Potente</span><span class="ao-s">Manifestando · 100-300</span></div>
+    </div>
 
     <!-- Jugador (slot inferior) -->
     <img class="mon bottom" id="mon-bot" alt="" />
     <div class="avatar bottom" id="avatar-bot"><span class="rank">🥈 TOP 2</span></div>
     <div class="infobox bottom">
+      <div class="turn-timer" id="turn-timer-bot"></div>
       <div class="ib-row1">
         <span class="ib-name" id="name-bot">Esperando…</span>
         <span class="ib-lv" id="lv-bot">Nv5</span>
@@ -361,11 +404,16 @@
         <span class="hp-num" id="hpnum-bot"></span>
       </div>
     </div>
+    <div class="attack-options bottom" id="atk-options-bot">
+      <div class="atk-opt"><img src="assets/atk-rosquilla.png" alt="" onerror="this.style.display='none'"><span class="ao-t">Simple</span><span class="ao-s">Rosquilla · 10-20</span></div>
+      <div class="atk-opt"><img src="assets/atk-gg.png" alt="" onerror="this.style.display='none'"><span class="ao-t">Intermedio</span><span class="ao-s">Super GG · 20-100</span></div>
+      <div class="atk-opt"><img src="assets/atk-manifestando.png" alt="" onerror="this.style.display='none'"><span class="ao-t">Potente</span><span class="ao-s">Manifestando · 100-300</span></div>
+    </div>
 
     <div class="msgbox" id="msgbox">¡Esperando jugadores…!</div>
     <div class="prep-banner" id="prep-banner">
-      <img src="assets/galaxy.png" alt="" />
-      <span>Tiempo para usar CARAMELORARO y subir 10 niveles.</span>
+      <img src="assets/galaxy.png" alt="" onerror="this.style.display='none'" />
+      <span>¡PUJA! El que mande el regalo más grande ataca primero.</span>
       <b id="prep-count">20</b>
     </div>
   </div>
@@ -403,27 +451,30 @@
   </div>
 
   <div class="grp">
-    <label>⚔️ Regalo = ataque (monedas = daño)</label>
-    <input id="in-coins" type="number" value="20" min="1" max="9999" />
+    <label>⚔️ Ataques por tipo (solo en su turno)</label>
     <div class="row">
-      <button onclick="simFighterAttack('top')">⚔️ Ataca TOP 1<br><small>daña al de abajo</small></button>
-      <button onclick="simFighterAttack('bot')">⚔️ Ataca TOP 2<br><small>daña al de arriba</small></button>
-    </div>
-    <button class="alt" onclick="simMoneyGun()">💸 Pistola de dinero<br><small>500 puntos / primero en cola</small></button>
-    <div class="row">
-      <button class="alt" onclick="simPotion('top')">🕶️ Poción TOP 1<br><small>cura arriba</small></button>
-      <button class="alt" onclick="simPotion('bot')">🕶️ Poción TOP 2<br><small>cura abajo</small></button>
+      <button onclick="simTier('top','simple')">🍩 Simple T1<br><small>10-20</small></button>
+      <button onclick="simTier('bot','simple')">🍩 Simple T2<br><small>10-20</small></button>
     </div>
     <div class="row">
-      <button class="alt" onclick="simRareCandy('top')">🌌 Caramelo TOP 1<br><small>+10 Nv arriba</small></button>
-      <button class="alt" onclick="simRareCandy('bot')">🌌 Caramelo TOP 2<br><small>+10 Nv abajo</small></button>
+      <button onclick="simTier('top','mid')">🏆 GG T1<br><small>20-100</small></button>
+      <button onclick="simTier('bot','mid')">🏆 GG T2<br><small>20-100</small></button>
     </div>
     <div class="row">
-      <button class="alt" onclick="manualFaint('top')">☠️ Debilitar arriba</button>
-      <button class="alt" onclick="manualFaint('bot')">☠️ Debilitar abajo</button>
+      <button onclick="simTier('top','strong')">🔮 Pot. T1<br><small>100-300</small></button>
+      <button onclick="simTier('bot','strong')">🔮 Pot. T2<br><small>100-300</small></button>
+    </div>
+    <button class="alt" onclick="simMoneyGun()">💸 Pistola de dinero<br><small>500 / primero en cola</small></button>
+    <div class="row">
+      <button class="alt" onclick="simPotion('top')">🕶️ Poción T1</button>
+      <button class="alt" onclick="simPotion('bot')">🕶️ Poción T2</button>
+    </div>
+    <div class="row">
+      <button class="alt" onclick="manualFaint('top')">☠️ KO arriba</button>
+      <button class="alt" onclick="manualFaint('bot')">☠️ KO abajo</button>
     </div>
     <button class="alt" onclick="simReset()">🔄 Reiniciar partida</button>
-    <div class="hint">Solo cuentan los regalos de los 2 luchadores. La vida no baja por inactividad; usa los botones de control para debilitar manualmente.</div>
+    <div class="hint">En la puja (20s) cuenta el regalo de más valor. En combate, solo puede atacar el jugador del turno activo (borde amarillo).</div>
   </div>
 </div>
 
@@ -432,13 +483,19 @@
 const SHOWDOWN = 'https://play.pokemonshowdown.com/sprites/';
 const ATTACKS = ['PLACAJE','ARAÑAZO','RAYO','LANZALLAMAS','HIDROBOMBA','PUÑO TRUENO','MEGAPATADA','GOLPE CUERPO'];
 const MONEY_GUN_COINS = 500;
-const PREP_SECONDS = 20;
-const RARE_CANDY_LEVELS = 10;
+const BID_SECONDS = 20;          // ventana de puja para decidir quién empieza
+const TURN_SECONDS = 30;         // duración del turno de cada jugador
+const TURN_TIMEOUT_FRAC = 0.20;  // % de vida que pierde si no ataca en su turno
 const HP_PER_LEVEL = 50;
+// Tipos de ataque (cada uno será un regalo/webhook). Daño aleatorio en su rango.
+const ATTACK_TIERS = {
+  simple: { key:'simple', label:'Rosquilla',    sub:'Ataque simple',     min:10,  max:20,  icon:'assets/atk-rosquilla.png',    move:'PLACAJE',     bid:1 },
+  mid:    { key:'mid',    label:'Super GG',     sub:'Ataque intermedio', min:20,  max:100, icon:'assets/atk-gg.png',           move:'BOLA SOMBRA', bid:50 },
+  strong: { key:'strong', label:'Manifestando', sub:'Ataque potente',    min:100, max:300, icon:'assets/atk-manifestando.png', move:'HIPERRAYO',   bid:200 }
+};
 const TEAM_ROCKET_USER = '__team_rocket__';
 const TEAM_ROCKET_SPRITES = { top: 'assets/team-rocket-front.png', bot: 'assets/team-rocket-back.png' };
 const TEAM_ROCKET_WAIT_MS = 60000;
-const TEAM_ROCKET_ATTACKS = [[15, 0.1], [30, 0.5], [60, 1.0]];
 const BATTLE_MUSIC_SRC = 'assets/battle-music.mp3';
 const BATTLE_MUSIC_VOLUME = 0.15;
 
@@ -545,9 +602,13 @@ let registry = {};        // username -> { nick, mon, img }
 let battleLocked = false;  // true mientras se resuelve un KO (evita dobles)
 let rocketSpawnTimer = null;
 let rocketAttackTimers = [];
-let battlePrepActive = false;
-let battlePrepTimer = null;
-let battlePrepInterval = null;
+let biddingActive = false;
+let biddingTimer = null;
+let biddingInterval = null;
+let bids = { top: 0, bot: 0 };
+let currentTurn = null;     // 'top' | 'bot' | null (turno activo)
+let turnTimer = null;
+let turnInterval = null;
 let battleMusic = null;
 let anyGiftEntryEnabled = false;
 
@@ -685,12 +746,15 @@ function isInQueue(user){
   return queue.some(c => c.user === user);
 }
 
-function giftAttack(attacker, dmg){
-  if(battleLocked || battlePrepActive) return;
+function giftAttack(attacker, dmg, moveName){
+  if(biddingActive){ registerBid(attacker, dmg); return; }
+  if(battleLocked || currentTurn !== attacker) return;
   const target = attacker === 'top' ? 'bot' : 'top';
   if(!F[target].active || F[target].hp <= 0) return;
   registerActivity(attacker);
-  doAttack(attacker, target, dmg);
+  doAttack(attacker, target, dmg, moveName, () => {
+    if(F[target].hp > 0 && !battleLocked) startTurn(target);
+  });
 }
 
 function enterBattle(f){
@@ -708,54 +772,68 @@ function enterBattle(f){
     renderQueue();
     setMessage('🧍 ' + f.nick + ' espera en la cola (' + queue.length + ').');
   }
-  if(entered) maybeStartBattlePrep();
+  if(entered) maybeStartBattle();
 }
 
 function activeBattleReady(){
   return F.top.active && F.bot.active && !battleLocked;
 }
 
-function maybeStartBattlePrep(){
-  if(!activeBattleReady() || battlePrepActive) return;
-  startBattlePrep();
+// Arranca la batalla (puja) cuando hay 2 luchadores y no hay ya puja/turno en curso.
+function maybeStartBattle(){
+  if(!activeBattleReady() || biddingActive || currentTurn) return;
+  startBidding();
 }
 
-function startBattlePrep(){
-  clearBattlePrep();
-  battlePrepActive = true;
-  let remaining = PREP_SECONDS;
-  showPrepBanner(remaining);
-  setMessage('¡Preparando combate! Tiempo para usar CARAMELORARO.');
-  battlePrepInterval = setInterval(() => {
+/* ===== Fase de puja (20s): el regalo más grande empieza ===== */
+function startBidding(){
+  clearTurnState();
+  clearBidding();
+  biddingActive = true;
+  bids = { top: 0, bot: 0 };
+  startBattleMusic();
+  let remaining = BID_SECONDS;
+  showBidBanner(remaining);
+  setMessage('¡' + BID_SECONDS + 's! El regalo más grande ataca primero ⚔️');
+  biddingInterval = setInterval(() => {
     remaining -= 1;
-    showPrepBanner(remaining);
-    if(remaining <= 0) finishBattlePrep();
+    showBidBanner(remaining);
+    if(remaining <= 0) finishBidding();
   }, 1000);
-  battlePrepTimer = setTimeout(finishBattlePrep, PREP_SECONDS * 1000 + 150);
+  biddingTimer = setTimeout(finishBidding, BID_SECONDS * 1000 + 150);
 }
 
-function finishBattlePrep(){
-  if(!battlePrepActive) return;
-  clearBattlePrep();
-  if(activeBattleReady()){
-    startBattleMusic();
-    setMessage('¡Comienza el combate!');
-    const rocketSide = F.top.isNpc ? 'top' : F.bot.isNpc ? 'bot' : null;
-    if(rocketSide) scheduleTeamRocketAttacks(rocketSide, rocketSide === 'top' ? 'bot' : 'top');
+function registerBid(side, value){
+  if(!biddingActive || !F[side].active || F[side].isNpc) return;
+  if(value > bids[side]){
+    bids[side] = value;
+    setMessage('🎁 ¡' + F[side].nick + ' puja ' + value + ' para atacar primero!');
   }
 }
 
-function clearBattlePrep(){
-  if(battlePrepTimer) clearTimeout(battlePrepTimer);
-  if(battlePrepInterval) clearInterval(battlePrepInterval);
-  battlePrepTimer = null;
-  battlePrepInterval = null;
-  battlePrepActive = false;
+function finishBidding(){
+  if(!biddingActive) return;
+  clearBidding();
+  if(!activeBattleReady()) return;
+  let first;
+  if(bids.top > bids.bot) first = 'top';
+  else if(bids.bot > bids.top) first = 'bot';
+  else first = Math.random() < 0.5 ? 'top' : 'bot';
+  setMessage('¡Comienza el combate! Empieza ' + F[first].nick + ' 🔥');
+  startTurn(first);
+}
+
+function clearBidding(){
+  if(biddingTimer) clearTimeout(biddingTimer);
+  if(biddingInterval) clearInterval(biddingInterval);
+  biddingTimer = null;
+  biddingInterval = null;
+  biddingActive = false;
   const banner = document.getElementById('prep-banner');
   if(banner) banner.classList.remove('show');
 }
 
-function showPrepBanner(seconds){
+function showBidBanner(seconds){
   const banner = document.getElementById('prep-banner');
   const count = document.getElementById('prep-count');
   if(!banner || !count) return;
@@ -763,22 +841,111 @@ function showPrepBanner(seconds){
   banner.classList.add('show');
 }
 
-// Un regalo de un usuario solo cuenta si ese usuario es uno de los 2 luchadores.
-// Su regalo daña al rival. coins = daño.
-function onAttack(user, nick, img, coins){
-  if(battleLocked || coins <= 0) return;
-  let attacker = null;
-  if(F.top.active && F.top.user === user) attacker = 'top';
-  else if(F.bot.active && F.bot.user === user) attacker = 'bot';
-  if(!attacker){
+/* ===== Gestión de turnos ===== */
+function startTurn(side){
+  clearTurnState();
+  if(!activeBattleReady() || !F[side].active){ return; }
+  currentTurn = side;
+  let remaining = TURN_SECONDS;
+  updateTurnUI(side, remaining);
+  if(F[side].isNpc){
+    setMessage('Turno de ' + F[side].nick + '…');
+    turnTimer = setTimeout(() => npcTakeTurn(side), 1800);
+    return;
+  }
+  setMessage('Turno de ' + F[side].nick + ' — ¡elige tu ataque!');
+  turnInterval = setInterval(() => {
+    remaining -= 1;
+    updateTurnUI(side, remaining);
+    if(remaining <= 0) turnTimeout(side);
+  }, 1000);
+}
+
+// Se acaba el turno sin atacar: pierde vida y pasa el turno.
+function turnTimeout(side){
+  clearTurnState();
+  if(!F[side].active) return;
+  const dmg = Math.max(1, Math.round(F[side].max * TURN_TIMEOUT_FRAC));
+  F[side].hp = Math.max(0, F[side].hp - dmg);
+  const img = document.getElementById('mon-' + side);
+  img.classList.remove('anim-blink'); void img.offsetWidth; img.classList.add('anim-blink');
+  popDamage(side, dmg);
+  setMessage('⏳ ¡' + F[side].nick + ' no atacó a tiempo! Pierde ' + dmg + ' HP.');
+  render();
+  if(F[side].hp <= 0){ faintFighter(side, side === 'top' ? 'bot' : 'top'); return; }
+  startTurn(side === 'top' ? 'bot' : 'top');
+}
+
+// Team Rocket (NPC) juega su turno con un ataque al azar.
+function npcTakeTurn(side){
+  if(currentTurn !== side || !F[side].active) return;
+  const keys = Object.keys(ATTACK_TIERS);
+  const tier = ATTACK_TIERS[keys[Math.floor(Math.random() * keys.length)]];
+  const dmg = tier.min + Math.floor(Math.random() * (tier.max - tier.min + 1));
+  giftAttack(side, dmg, tier.move);
+}
+
+function clearTurnState(){
+  if(turnTimer) clearTimeout(turnTimer);
+  if(turnInterval) clearInterval(turnInterval);
+  turnTimer = null;
+  turnInterval = null;
+  currentTurn = null;
+  for(const s of ['top','bot']){
+    const box = document.querySelector('.infobox.' + s);
+    if(box) box.classList.remove('active-turn');
+    const opts = document.getElementById('atk-options-' + s);
+    if(opts) opts.classList.remove('show');
+    const timer = document.getElementById('turn-timer-' + s);
+    if(timer) timer.classList.remove('show');
+  }
+}
+
+function updateTurnUI(side, secondsLeft){
+  for(const s of ['top','bot']){
+    const isActive = (s === side);
+    const human = isActive && !F[s].isNpc;
+    const box = document.querySelector('.infobox.' + s);
+    if(box) box.classList.toggle('active-turn', isActive);
+    const opts = document.getElementById('atk-options-' + s);
+    if(opts) opts.classList.toggle('show', human);
+    const timer = document.getElementById('turn-timer-' + s);
+    if(timer){
+      timer.classList.toggle('show', human);
+      timer.textContent = Math.max(0, secondsLeft);
+    }
+  }
+}
+
+// Ataque de un tipo concreto (rosquilla/GG/manifestando) desde su webhook.
+function onTierAttack(user, nick, img, tierKey){
+  const tier = ATTACK_TIERS[tierKey];
+  if(!tier) return;
+  const side = getFightingSide(user);
+  if(!side){
     if(anyGiftEntryEnabled) tryEnterFromGift(user, nick, img);
     return;
   }
-  if(battlePrepActive) return;
-  const target = attacker === 'top' ? 'bot' : 'top';
-  if(!F[target].active || F[target].hp <= 0) return;
-  registerActivity(attacker);
-  doAttack(attacker, target, coins);
+  if(biddingActive){ registerBid(side, tier.bid); return; }
+  if(battleLocked) return;
+  if(currentTurn !== side){
+    setMessage('No es el turno de ' + F[side].nick + '.');
+    return;
+  }
+  const dmg = tier.min + Math.floor(Math.random() * (tier.max - tier.min + 1));
+  giftAttack(side, dmg, tier.move);
+}
+
+// Un regalo de un usuario solo cuenta si ese usuario es uno de los 2 luchadores.
+// Su regalo daña al rival. coins = daño.
+function onAttack(user, nick, img, coins){
+  if(coins <= 0) return;
+  const side = getFightingSide(user);
+  if(!side){
+    if(anyGiftEntryEnabled) tryEnterFromGift(user, nick, img);
+    return;
+  }
+  giftAttack(side, coins);   // giftAttack gestiona puja y turno
 }
 
 function onPotion(user){
@@ -798,32 +965,11 @@ function onPotion(user){
   setMessage('🕶️ ¡' + F[side].nick + ' usó POCIÓN! (+' + healed + ' HP)');
 }
 
-function onRareCandy(user){
-  if(!battlePrepActive){
-    setMessage('🌌 CARAMELORARO solo se puede usar antes de empezar el combate.');
-    return;
-  }
-  const side = getFightingSide(user);
-  if(!side || !F[side].active || F[side].isNpc) return;
-  boostLevels(side, RARE_CANDY_LEVELS);
-  setMessage('🌌 ¡' + F[side].nick + ' usó CARAMELORARO! +' + RARE_CANDY_LEVELS + ' niveles.');
-}
-
-function boostLevels(side, levels){
-  if(!F[side].active) return;
-  const hpGain = levels * HP_PER_LEVEL;
-  F[side].lv += levels;
-  F[side].max += hpGain;
-  F[side].hp += hpGain;
-  render();
-}
-
 function moneyGunPriority(user, nick, img){
   if(battleLocked) return;
   const fightingSide = getFightingSide(user);
   if(fightingSide){
-    if(battlePrepActive) return;
-    giftAttack(fightingSide, MONEY_GUN_COINS);
+    giftAttack(fightingSide, MONEY_GUN_COINS);   // puja o ataque potente en su turno
     return;
   }
   const r = registry[user] || {};
@@ -890,7 +1036,7 @@ function spawnTeamRocket(){
     isNpc: true
   });
   setMessage('¡TEAM ROCKET aparece para retar a ' + target.nick + '!');
-  maybeStartBattlePrep();
+  maybeStartBattle();
 }
 
 function clearRocketAttacks(){
@@ -898,26 +1044,8 @@ function clearRocketAttacks(){
   rocketAttackTimers = [];
 }
 
-function scheduleTeamRocketAttacks(rocketSide, targetSide){
-  clearRocketAttacks();
-  for(const [sec, frac] of TEAM_ROCKET_ATTACKS){
-    rocketAttackTimers.push(setTimeout(() => {
-      teamRocketAttack(rocketSide, targetSide, frac);
-    }, sec * 1000));
-  }
-}
-
-function teamRocketAttack(rocketSide, targetSide, frac){
-  if(battleLocked || battlePrepActive) return;
-  const rocket = F[rocketSide];
-  const target = F[targetSide];
-  if(!rocket.active || !rocket.isNpc || !target.active || target.hp <= 0) return;
-  const dmg = Math.max(1, Math.round(target.max * frac));
-  doAttack(rocketSide, targetSide, dmg);
-}
-
-function doAttack(attacker, target, dmg){
-  const move = ATTACKS[Math.floor(Math.random() * ATTACKS.length)];
+function doAttack(attacker, target, dmg, moveName, onDone){
+  const move = moveName || ATTACKS[Math.floor(Math.random() * ATTACKS.length)];
   const aImg = document.getElementById('mon-' + attacker);
   aImg.classList.remove('anim-lunge'); void aImg.offsetWidth; aImg.classList.add('anim-lunge');
   setMessage('¡' + F[attacker].nick + ' usó ' + move + '! (-' + dmg + ')');
@@ -932,6 +1060,7 @@ function doAttack(attacker, target, dmg){
     render();
 
     if(F[target].hp <= 0) faintFighter(target, attacker);
+    else if(onDone) onDone();
   }, 320);
 }
 
@@ -951,7 +1080,8 @@ function levelUp(side){
 
 function faintFighter(loser, winner){
   if(battleLocked) return;
-  clearBattlePrep();
+  clearBidding();
+  clearTurnState();
   clearRocketAttacks();
   stopBattleMusic();
   battleLocked = true;
@@ -1006,7 +1136,7 @@ function advanceQueue(loserSide, winnerSide){
   renderQueue();
   if(champion) registerActivity('top');  // respiro tras el KO
   battleLocked = false;
-  maybeStartBattlePrep();
+  maybeStartBattle();
   syncRocketTimer();
 }
 
@@ -1027,7 +1157,8 @@ function resetGame(){
     rocketSpawnTimer = null;
   }
   stopBattleMusic();
-  clearBattlePrep();
+  clearBidding();
+  clearTurnState();
   clearRocketAttacks();
   queue = []; registry = {}; battleLocked = false;
   clearFighter('top'); clearFighter('bot');
@@ -1045,9 +1176,11 @@ function handleEvent(d){
     case 'comment': onComment(user, nick, img, d.comment || d.message || d.text || d.content || ''); break;
     case 'fight':   onFight(user, nick, img); break;
     case 'attack':  onAttack(user, nick, img, parseInt(d.coins || d.dmg || 0, 10)); break;
+    case 'attack_simple': onTierAttack(user, nick, img, 'simple'); break;
+    case 'attack_mid':    onTierAttack(user, nick, img, 'mid'); break;
+    case 'attack_strong': onTierAttack(user, nick, img, 'strong'); break;
     case 'money_gun': moneyGunPriority(user, nick, img); break;
     case 'potion':  onPotion(user); break;
-    case 'rare_candy': onRareCandy(user); break;
     case 'reset':   resetGame(); break;
   }
 }
@@ -1129,17 +1262,13 @@ function sim(evt){
 function simUser(){ const u = val('sim-user') || 'anon'; return { username:u, nickname:u, imgprofile:fakePic(u) }; }
 function simComment(){ sim(Object.assign(simUser(), { event:'comment', comment: val('sim-comment') })); }
 function simGift(kind){ sim(Object.assign(simUser(), { event: kind })); }
-function simFighterAttack(side){
-  if(!F[side].active){ setMessage('No hay luchador en ese hueco.'); return; }
-  sim({ event:'attack', username: F[side].user, coins: parseInt(val('in-coins') || '20', 10) });
-}
 function simMoneyGun(){ sim(Object.assign(simUser(), { event:'money_gun' })); }
 function simFighterGift(side, event){
   if(!F[side].active){ setMessage('No hay luchador en ese hueco.'); return; }
   sim({ event, username: F[side].user, nickname: F[side].nick, imgprofile: F[side].img });
 }
 function simPotion(side){ simFighterGift(side, 'potion'); }
-function simRareCandy(side){ simFighterGift(side, 'rare_candy'); }
+function simTier(side, tier){ simFighterGift(side, 'attack_' + tier); }
 function simReset(){ sim({ event:'reset' }); }
 
 function updateAnyGiftEntryMode(){

@@ -50,9 +50,9 @@ https://TU-APP.onrender.com/?obs=1
 Tamaño recomendado: 720 x 480 (o escálalo). Marca fondo transparente si la fuente
 lo permite.
 
-## Paso 4 — Configurar TikFinity
+## Paso 4 — Configurar TikFinity / Interactive
 
-Crea 3 acciones **Comandos WebHook**, método **POST**, URL:
+Crea estas acciones **Comandos WebHook**, método **POST**, todas con esta URL:
 
 ```
 https://TU-APP.onrender.com/webhook
@@ -64,24 +64,33 @@ POST Body de cada una:
 |--------------------------------|-----------|
 | Mensaje de chat (elige Pokémon) | `{"event":"comment","username":"{username}","nickname":"{nickname}","imgprofile":"{imgprofile}","comment":"{comment}"}` |
 | Regalo 🦦 Capibara (entrar)     | `{"event":"fight","username":"{username}","nickname":"{nickname}","imgprofile":"{imgprofile}"}` |
-| Cualquier OTRO regalo (ataque) | `{"event":"attack","username":"{username}","nickname":"{nickname}","imgprofile":"{imgprofile}","coins":{coins}}` |
+| Regalo 🍩 Rosquilla (ataque simple) | `{"event":"attack_simple","username":"{username}","nickname":"{nickname}","imgprofile":"{imgprofile}"}` |
+| Regalo 🏆 Super GG (ataque intermedio) | `{"event":"attack_mid","username":"{username}","nickname":"{nickname}","imgprofile":"{imgprofile}"}` |
+| Regalo 🔮 Manifestando (ataque potente) | `{"event":"attack_strong","username":"{username}","nickname":"{nickname}","imgprofile":"{imgprofile}"}` |
 | Regalo pistola de dinero | `{"event":"money_gun","username":"{username}","nickname":"{nickname}","imgprofile":"{imgprofile}"}` |
 | Regalo gafas de sol (poción) | `{"event":"potion","username":"{username}","nickname":"{nickname}","imgprofile":"{imgprofile}"}` |
-| Regalo galaxia (CARAMELORARO) | `{"event":"rare_candy","username":"{username}","nickname":"{nickname}","imgprofile":"{imgprofile}"}` |
+
+Opcional, si quieres mantener un webhook genérico para otros regalos:
+
+| Disparador                     | POST Body |
+|--------------------------------|-----------|
+| Cualquier otro regalo con monedas | `{"event":"attack","username":"{username}","nickname":"{nickname}","imgprofile":"{imgprofile}","coins":{coins}}` |
 
 **Cómo funciona el combate:**
 - El comentario asigna el Pokémon. La capibara mete al usuario a luchar o a la cola si antes escribió un Pokémon válido. Si ese usuario ya está luchando, la capibara hace 30 de daño al rival.
-- Un regalo = ataque, y el daño = sus monedas (`{coins}`). **Solo cuentan los regalos de los 2 que están luchando** (el de arriba daña al de abajo y viceversa); los espectadores no hacen daño.
-- La pistola de dinero tiene su propio disparador/webhook (`event:"money_gun"`). Pone al usuario primero en la cola si no está luchando. Si ese usuario ya está luchando, hace `500` de daño al rival.
+- Cuando hay 2 luchadores empieza una **puja de 20 segundos**. Durante esa puja, los regalos de ataque deciden quién empieza: Rosquilla vale `1`, Super GG vale `50`, Manifestando vale `200` y pistola de dinero vale `500`.
+- Después de la puja, el combate va por **turnos de 30 segundos**. Solo puede atacar el jugador cuyo turno está activo. Si no ataca a tiempo, pierde el `20%` de su vida máxima y pasa el turno.
+- Los ataques específicos hacen daño aleatorio: Rosquilla `10-20`, Super GG `20-100`, Manifestando `100-300`.
+- El webhook genérico `event:"attack"` usa `{coins}` como daño/puja, pero es opcional si ya usas los 3 ataques específicos.
+- La pistola de dinero tiene su propio disparador/webhook (`event:"money_gun"`). Pone al usuario primero en la cola si no está luchando. Si ese usuario ya está luchando, cuenta como puja/ataque de `500`.
 - Las gafas de sol tienen su propio disparador/webhook (`event:"potion"`). Solo funcionan si el usuario está luchando y curan el 50% de la vida máxima de su Pokémon; no hacen daño al rival.
-- La galaxia tiene su propio disparador/webhook (`event:"rare_candy"`). Al empezar cada combate aparece un contador de 20 segundos para usar CARAMELORARO; cada galaxia enviada por un luchador en ese tiempo suma 10 niveles y la vida máxima correspondiente. Fuera de ese contador no tiene efecto.
 - En el panel del overlay hay un interruptor para permitir que cualquier regalo normal meta al usuario en batalla/cola si ya eligió Pokémon. Si está apagado, solo entra con capibara.
 - Cada personaje empieza en **Nv1 con 100 HP**. Al ganar sube de nivel, gana **+50 HP** máx. y vuelve a curarse al **100%**.
-- Cuando termina el contador previo y empieza el combate, suena en bucle `assets/battle-music.mp3` como música de fondo a volumen bajo.
-- Los luchadores ya no pierden vida por inactividad. Puedes debilitar manualmente al luchador de arriba o abajo desde el panel de control del overlay.
-- Si durante 60 segundos solo hay un luchador humano y nadie entra a retarle, aparece **TEAM ROCKET** en el hueco libre con el mismo nivel. Ataca a los 15s, 30s y 60s quitando el 10%, 50% y 100% de la vida máxima del rival.
+- Cuando empieza la puja/combate, suena en bucle `assets/battle-music.mp3` como música de fondo a volumen bajo.
+- Puedes debilitar manualmente al luchador de arriba o abajo desde el panel de control del overlay.
+- Si durante 60 segundos solo hay un luchador humano y nadie entra a retarle, aparece **TEAM ROCKET** en el hueco libre con el mismo nivel. Ahora juega dentro del sistema de turnos como un rival NPC.
 
-> ⚠️ Importante: en el webhook de **ataque**, configura el disparador para **excluir la capibara**. La capibara ya se gestiona con el webhook `fight`: entra/cola si el usuario no está luchando, y hace 30 de daño si ya está luchando.
+> ⚠️ Importante: si usas también el webhook genérico `event:"attack"`, configura ese disparador para **excluir** capibara, pistola de dinero, gafas de sol, rosquilla, Super GG y Manifestando. Cada uno de esos regalos ya tiene su propio webhook.
 > Nota: `{coins}` va **sin comillas** (es un número).
 
 ## Paso 5 (opcional) — Proteger el webhook con un token

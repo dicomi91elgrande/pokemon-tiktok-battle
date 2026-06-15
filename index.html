@@ -256,7 +256,7 @@
 
   /* indicador de conexión con el servidor */
   #conn {
-    position: absolute; top: calc(50% - 272px); left: 50%; transform: translateX(-50%);
+    position: absolute; top: calc(50% - 318px); left: 50%; transform: translateX(-50%);
     font-size: 9px; padding: 3px 8px; border-radius: 10px; z-index: 7;
     background: #b04040; color: #fff;
   }
@@ -352,12 +352,42 @@
   }
   .qchip b { color: #8fd; }
   .qempty { font-size: 10px; color: #567; font-style: italic; }
+  .selection-board {
+    position: absolute;
+    left: 50%;
+    top: calc(50% - 292px);
+    transform: translateX(calc(-50% + 14px));
+    width: min(692px, calc(100vw - 60px));
+    min-height: 38px;
+    max-height: 76px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 7px 10px;
+    color: #dff;
+    z-index: 10;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  .selection-list {
+    display: flex;
+    flex: 1;
+    flex-wrap: wrap;
+    gap: 4px;
+    min-height: 16px;
+    max-height: 60px;
+    overflow: hidden;
+  }
 </style>
 </head>
 <body>
 
 <div id="stage">
   <div id="conn">○ sin servidor</div>
+  <div class="selection-board">
+    <span class="queue-title">ELIGEN</span>
+    <div id="selection-list" class="selection-list"></div>
+  </div>
   <div class="battle" id="battle">
     <div class="field-line" style="top:40%"></div>
     <div class="field-line" style="top:60%"></div>
@@ -1408,6 +1438,7 @@ let turnTimer = null;
 let turnInterval = null;
 let battleMusic = null;
 let anyGiftEntryEnabled = false;
+let selectionNotices = [];
 
 function getBattleMusic(){
   if(!battleMusic){
@@ -1502,9 +1533,33 @@ function onComment(user, nick, img, comment){
   const entry = findMon(comment);
   if(entry){
     r.mon = entry.name;
-    setMessage('📝 ' + nick + ' eligió ' + entry.name + '. ¡Manda 🦦 capibara para luchar!');
+    addSelectionNotice(nick, entry.name);
   }
   registry[user] = r;
+}
+
+function escapeHtml(text){
+  return String(text || '').replace(/[&<>"']/g, c => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+  })[c]);
+}
+
+function addSelectionNotice(nick, mon){
+  selectionNotices.unshift({ nick, mon });
+  selectionNotices = selectionNotices.slice(0, 8);
+  renderSelectionNotices();
+}
+
+function renderSelectionNotices(){
+  const el = document.getElementById('selection-list');
+  if(!el) return;
+  if(!selectionNotices.length){
+    el.innerHTML = '<span class="qempty">Sin elecciones</span>';
+    return;
+  }
+  el.innerHTML = selectionNotices
+    .map(s => '<span class="qchip"><b>' + escapeHtml(s.nick) + ':</b> ' + escapeHtml(s.mon) + '</span>')
+    .join('');
 }
 
 function onFight(user, nick, img){        // 🦦 capibara
@@ -1960,9 +2015,10 @@ function resetGame(){
   clearBidding();
   clearTurnState();
   clearRocketAttacks();
-  queue = []; registry = {}; battleLocked = false;
+  queue = []; registry = {}; selectionNotices = []; battleLocked = false;
   clearFighter('top'); clearFighter('bot');
   renderQueue();
+  renderSelectionNotices();
   setMessage('¡Listo! Escribe un Pokémon en el chat y manda 🦦 para luchar.');
 }
 
@@ -2130,6 +2186,7 @@ document.addEventListener('keydown', e => {
 /* ============ Arranque ============ */
 render();
 renderQueue();
+renderSelectionNotices();
 connectSSE();
 setMessage('¡Listo! Escribe un Pokémon en el chat y manda 🦦 para luchar.');
 </script>

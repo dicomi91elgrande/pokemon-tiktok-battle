@@ -186,7 +186,7 @@
   }
   .atk-opt + .atk-opt { margin-top: -3px; }   /* solapa bordes: sin hueco entre cajas */
   .atk-opt img { width: 26px; height: 26px; object-fit: contain; image-rendering: pixelated; flex: 0 0 auto; }
-  .atk-opt .ao-t { font-size: 10px; white-space: nowrap; }
+  .atk-opt .ao-t { font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
   .atk-opt .ao-s { font-size: 9px; color: #8a8060; margin-left: auto; white-space: nowrap; padding-left: 8px; }
 
   /* ===== Avatares de TikTok (foto de perfil real) ===== */
@@ -495,6 +495,764 @@ const ATTACK_TIERS = {
   mid:    { key:'mid',    label:'Super GG',     sub:'Ataque intermedio', min:20,  max:100, icon:'assets/atk-gg.png',           move:'BOLA SOMBRA', bid:50 },
   strong: { key:'strong', label:'Manifestando', sub:'Ataque potente',    min:100, max:300, icon:'assets/atk-manifestando.png', move:'HIPERRAYO',   bid:200 }
 };
+// Nombres de ataques por Pokémon extraídos de Pokemon151_Ataques.pdf.
+const POKEMON_ATTACKS = {
+  "Bulbasaur": {
+    "simple": "Placaje",
+    "mid": "Látigo Cepa",
+    "strong": "Rayo Solar"
+  },
+  "Ivysaur": {
+    "simple": "Placaje",
+    "mid": "Hoja Afilada",
+    "strong": "Rayo Solar"
+  },
+  "Venusaur": {
+    "simple": "Látigo Cepa",
+    "mid": "Hoja Afilada",
+    "strong": "Planta Feroz"
+  },
+  "Charmander": {
+    "simple": "Arañazo",
+    "mid": "Ascuas",
+    "strong": "Lanzallamas"
+  },
+  "Charmeleon": {
+    "simple": "Arañazo",
+    "mid": "Colmillo Ígneo",
+    "strong": "Lanzallamas"
+  },
+  "Charizard": {
+    "simple": "Ala de Acero",
+    "mid": "Tajo Aéreo",
+    "strong": "Llamarada"
+  },
+  "Squirtle": {
+    "simple": "Placaje",
+    "mid": "Pistola Agua",
+    "strong": "Hidrobomba"
+  },
+  "Wartortle": {
+    "simple": "Placaje",
+    "mid": "Acua Cola",
+    "strong": "Hidrobomba"
+  },
+  "Blastoise": {
+    "simple": "Pistola Agua",
+    "mid": "Acua Cola",
+    "strong": "Hidrocañón"
+  },
+  "Caterpie": {
+    "simple": "Placaje",
+    "mid": "Disparo Demora",
+    "strong": "Derribo"
+  },
+  "Metapod": {
+    "simple": "Placaje",
+    "mid": "Placaje",
+    "strong": "Derribo"
+  },
+  "Butterfree": {
+    "simple": "Confusión",
+    "mid": "Psíquico",
+    "strong": "Vendaval"
+  },
+  "Weedle": {
+    "simple": "Picotazo Veneno",
+    "mid": "Picadura",
+    "strong": "Puya Nociva"
+  },
+  "Kakuna": {
+    "simple": "Picadura",
+    "mid": "Placaje",
+    "strong": "Derribo"
+  },
+  "Beedrill": {
+    "simple": "Picadura",
+    "mid": "Doble Ataque",
+    "strong": "Megacuerno"
+  },
+  "Pidgey": {
+    "simple": "Ataque Ala",
+    "mid": "Tornado",
+    "strong": "Vendaval"
+  },
+  "Pidgeotto": {
+    "simple": "Ataque Ala",
+    "mid": "Tajo Aéreo",
+    "strong": "Vendaval"
+  },
+  "Pidgeot": {
+    "simple": "Ataque Ala",
+    "mid": "Tajo Aéreo",
+    "strong": "Pájaro Osado"
+  },
+  "Rattata": {
+    "simple": "Placaje",
+    "mid": "Hipercolmillo",
+    "strong": "Hiperrayo"
+  },
+  "Raticate": {
+    "simple": "Mordisco",
+    "mid": "Hipercolmillo",
+    "strong": "Hiperrayo"
+  },
+  "Spearow": {
+    "simple": "Picotazo",
+    "mid": "Pico Taladro",
+    "strong": "Pájaro Osado"
+  },
+  "Fearow": {
+    "simple": "Picotazo",
+    "mid": "Pico Taladro",
+    "strong": "Pájaro Osado"
+  },
+  "Ekans": {
+    "simple": "Mordisco",
+    "mid": "Colmillo Veneno",
+    "strong": "Triturar"
+  },
+  "Arbok": {
+    "simple": "Mordisco",
+    "mid": "Colmillo Veneno",
+    "strong": "Triturar"
+  },
+  "Pikachu": {
+    "simple": "Impactrueno",
+    "mid": "Chispazo",
+    "strong": "Rayo"
+  },
+  "Raichu": {
+    "simple": "Impactrueno",
+    "mid": "Chispazo",
+    "strong": "Trueno"
+  },
+  "Sandshrew": {
+    "simple": "Arañazo",
+    "mid": "Excavar",
+    "strong": "Terremoto"
+  },
+  "Sandslash": {
+    "simple": "Arañazo",
+    "mid": "Excavar",
+    "strong": "Terremoto"
+  },
+  "Nidoran♀": {
+    "simple": "Placaje",
+    "mid": "Puya Nociva",
+    "strong": "Tierra Viva"
+  },
+  "Nidorina": {
+    "simple": "Mordisco",
+    "mid": "Puya Nociva",
+    "strong": "Tierra Viva"
+  },
+  "Nidoqueen": {
+    "simple": "Doble Patada",
+    "mid": "Golpe Cuerpo",
+    "strong": "Terremoto"
+  },
+  "Nidoran♂": {
+    "simple": "Picotazo",
+    "mid": "Puya Nociva",
+    "strong": "Tierra Viva"
+  },
+  "Nidorino": {
+    "simple": "Cornada",
+    "mid": "Puya Nociva",
+    "strong": "Megacuerno"
+  },
+  "Nidoking": {
+    "simple": "Doble Patada",
+    "mid": "Megacuerno",
+    "strong": "Terremoto"
+  },
+  "Clefairy": {
+    "simple": "Destructor",
+    "mid": "Voz Cautivadora",
+    "strong": "Fuerza Lunar"
+  },
+  "Clefable": {
+    "simple": "Destructor",
+    "mid": "Brillo Mágico",
+    "strong": "Fuerza Lunar"
+  },
+  "Vulpix": {
+    "simple": "Ascuas",
+    "mid": "Llama Embrujada",
+    "strong": "Lanzallamas"
+  },
+  "Ninetales": {
+    "simple": "Ascuas",
+    "mid": "Llama Embrujada",
+    "strong": "Sofoco"
+  },
+  "Jigglypuff": {
+    "simple": "Destructor",
+    "mid": "Golpe Cuerpo",
+    "strong": "Hipervoz"
+  },
+  "Wigglytuff": {
+    "simple": "Destructor",
+    "mid": "Golpe Cuerpo",
+    "strong": "Hipervoz"
+  },
+  "Zubat": {
+    "simple": "Ataque Ala",
+    "mid": "Colmillo Veneno",
+    "strong": "Veneno X"
+  },
+  "Golbat": {
+    "simple": "Ataque Ala",
+    "mid": "Colmillo Veneno",
+    "strong": "Pájaro Osado"
+  },
+  "Oddish": {
+    "simple": "Absorber",
+    "mid": "Hoja Mágica",
+    "strong": "Rayo Solar"
+  },
+  "Gloom": {
+    "simple": "Absorber",
+    "mid": "Bomba Germen",
+    "strong": "Rayo Solar"
+  },
+  "Vileplume": {
+    "simple": "Hoja Mágica",
+    "mid": "Bomba Germen",
+    "strong": "Rayo Solar"
+  },
+  "Paras": {
+    "simple": "Arañazo",
+    "mid": "Tijera X",
+    "strong": "Megacuerno"
+  },
+  "Parasect": {
+    "simple": "Arañazo",
+    "mid": "Tijera X",
+    "strong": "Megacuerno"
+  },
+  "Venonat": {
+    "simple": "Confusión",
+    "mid": "Psíquico",
+    "strong": "Psíquico Carga"
+  },
+  "Venomoth": {
+    "simple": "Confusión",
+    "mid": "Psíquico",
+    "strong": "Vendaval"
+  },
+  "Diglett": {
+    "simple": "Arañazo",
+    "mid": "Excavar",
+    "strong": "Terremoto"
+  },
+  "Dugtrio": {
+    "simple": "Arañazo",
+    "mid": "Excavar",
+    "strong": "Terremoto"
+  },
+  "Meowth": {
+    "simple": "Arañazo",
+    "mid": "Tajo Umbrío",
+    "strong": "Golpe Bajo"
+  },
+  "Persian": {
+    "simple": "Arañazo",
+    "mid": "Tajo Umbrío",
+    "strong": "Hiperrayo"
+  },
+  "Psyduck": {
+    "simple": "Arañazo",
+    "mid": "Pistola Agua",
+    "strong": "Hidrobomba"
+  },
+  "Golduck": {
+    "simple": "Pistola Agua",
+    "mid": "Psíquico",
+    "strong": "Hidrobomba"
+  },
+  "Mankey": {
+    "simple": "Arañazo",
+    "mid": "Golpe Karate",
+    "strong": "A Bocajarro"
+  },
+  "Primeape": {
+    "simple": "Golpe Karate",
+    "mid": "Tajo Cruzado",
+    "strong": "A Bocajarro"
+  },
+  "Growlithe": {
+    "simple": "Mordisco",
+    "mid": "Colmillo Ígneo",
+    "strong": "Lanzallamas"
+  },
+  "Arcanine": {
+    "simple": "Colmillo Ígneo",
+    "mid": "Envite Ígneo",
+    "strong": "Sofoco"
+  },
+  "Poliwag": {
+    "simple": "Pistola Agua",
+    "mid": "Burbuja",
+    "strong": "Hidrobomba"
+  },
+  "Poliwhirl": {
+    "simple": "Pistola Agua",
+    "mid": "Burbuja",
+    "strong": "Hidrobomba"
+  },
+  "Poliwrath": {
+    "simple": "Burbuja",
+    "mid": "Puño Incremento",
+    "strong": "Hidrobomba"
+  },
+  "Abra": {
+    "simple": "Confusión",
+    "mid": "Psíquico",
+    "strong": "Premonición"
+  },
+  "Kadabra": {
+    "simple": "Confusión",
+    "mid": "Psíquico",
+    "strong": "Premonición"
+  },
+  "Alakazam": {
+    "simple": "Confusión",
+    "mid": "Psíquico",
+    "strong": "Onda Mental"
+  },
+  "Machop": {
+    "simple": "Golpe Karate",
+    "mid": "Tajo Cruzado",
+    "strong": "A Bocajarro"
+  },
+  "Machoke": {
+    "simple": "Golpe Karate",
+    "mid": "Tajo Cruzado",
+    "strong": "A Bocajarro"
+  },
+  "Machamp": {
+    "simple": "Puño Bala",
+    "mid": "Tajo Cruzado",
+    "strong": "A Bocajarro"
+  },
+  "Bellsprout": {
+    "simple": "Látigo Cepa",
+    "mid": "Hoja Afilada",
+    "strong": "Rayo Solar"
+  },
+  "Weepinbell": {
+    "simple": "Látigo Cepa",
+    "mid": "Hoja Afilada",
+    "strong": "Rayo Solar"
+  },
+  "Victreebel": {
+    "simple": "Hoja Afilada",
+    "mid": "Bomba Germen",
+    "strong": "Rayo Solar"
+  },
+  "Tentacool": {
+    "simple": "Burbuja",
+    "mid": "Bomba Lodo",
+    "strong": "Hidrobomba"
+  },
+  "Tentacruel": {
+    "simple": "Burbuja",
+    "mid": "Bomba Lodo",
+    "strong": "Hidrobomba"
+  },
+  "Geodude": {
+    "simple": "Placaje",
+    "mid": "Avalancha",
+    "strong": "Terremoto"
+  },
+  "Graveler": {
+    "simple": "Placaje",
+    "mid": "Avalancha",
+    "strong": "Terremoto"
+  },
+  "Golem": {
+    "simple": "Rodar",
+    "mid": "Avalancha",
+    "strong": "Terremoto"
+  },
+  "Ponyta": {
+    "simple": "Ascuas",
+    "mid": "Nitrocarga",
+    "strong": "Llamarada"
+  },
+  "Rapidash": {
+    "simple": "Ascuas",
+    "mid": "Envite Ígneo",
+    "strong": "Llamarada"
+  },
+  "Slowpoke": {
+    "simple": "Pistola Agua",
+    "mid": "Psíquico",
+    "strong": "Surf"
+  },
+  "Slowbro": {
+    "simple": "Pistola Agua",
+    "mid": "Psíquico",
+    "strong": "Surf"
+  },
+  "Magnemite": {
+    "simple": "Impactrueno",
+    "mid": "Chispazo",
+    "strong": "Rayo"
+  },
+  "Magneton": {
+    "simple": "Impactrueno",
+    "mid": "Chispazo",
+    "strong": "Trueno"
+  },
+  "Farfetch'd": {
+    "simple": "Picotazo",
+    "mid": "Tajo Aéreo",
+    "strong": "Pájaro Osado"
+  },
+  "Doduo": {
+    "simple": "Picotazo",
+    "mid": "Pico Taladro",
+    "strong": "Pájaro Osado"
+  },
+  "Dodrio": {
+    "simple": "Picotazo",
+    "mid": "Pico Taladro",
+    "strong": "Pájaro Osado"
+  },
+  "Seel": {
+    "simple": "Pistola Agua",
+    "mid": "Aurora Beam",
+    "strong": "Ventisca"
+  },
+  "Dewgong": {
+    "simple": "Pistola Agua",
+    "mid": "Aurora Beam",
+    "strong": "Ventisca"
+  },
+  "Grimer": {
+    "simple": "Disparo Lodo",
+    "mid": "Bomba Lodo",
+    "strong": "Bomba Ácida"
+  },
+  "Muk": {
+    "simple": "Disparo Lodo",
+    "mid": "Bomba Lodo",
+    "strong": "Gunk Shot"
+  },
+  "Shellder": {
+    "simple": "Placaje",
+    "mid": "Carámbano",
+    "strong": "Hidrobomba"
+  },
+  "Cloyster": {
+    "simple": "Carámbano",
+    "mid": "Carámbano Múltiple",
+    "strong": "Ventisca"
+  },
+  "Gastly": {
+    "simple": "Lengüetazo",
+    "mid": "Bola Sombra",
+    "strong": "Infortunio"
+  },
+  "Haunter": {
+    "simple": "Lengüetazo",
+    "mid": "Bola Sombra",
+    "strong": "Infortunio"
+  },
+  "Gengar": {
+    "simple": "Lengüetazo",
+    "mid": "Bola Sombra",
+    "strong": "Onda Tóxica"
+  },
+  "Onix": {
+    "simple": "Placaje",
+    "mid": "Avalancha",
+    "strong": "Terremoto"
+  },
+  "Drowzee": {
+    "simple": "Confusión",
+    "mid": "Psíquico",
+    "strong": "Premonición"
+  },
+  "Hypno": {
+    "simple": "Confusión",
+    "mid": "Psíquico",
+    "strong": "Premonición"
+  },
+  "Krabby": {
+    "simple": "Burbuja",
+    "mid": "Martillazo",
+    "strong": "Hidrobomba"
+  },
+  "Kingler": {
+    "simple": "Burbuja",
+    "mid": "Martillazo",
+    "strong": "Guillotina"
+  },
+  "Voltorb": {
+    "simple": "Impactrueno",
+    "mid": "Chispazo",
+    "strong": "Trueno"
+  },
+  "Electrode": {
+    "simple": "Impactrueno",
+    "mid": "Chispazo",
+    "strong": "Trueno"
+  },
+  "Exeggcute": {
+    "simple": "Confusión",
+    "mid": "Bomba Germen",
+    "strong": "Psíquico"
+  },
+  "Exeggutor": {
+    "simple": "Confusión",
+    "mid": "Psíquico",
+    "strong": "Rayo Solar"
+  },
+  "Cubone": {
+    "simple": "Huesomerang",
+    "mid": "Excavar",
+    "strong": "Terremoto"
+  },
+  "Marowak": {
+    "simple": "Huesomerang",
+    "mid": "Golpe Bajo",
+    "strong": "Terremoto"
+  },
+  "Hitmonlee": {
+    "simple": "Patada Baja",
+    "mid": "Patada Salto",
+    "strong": "Patada Ígnea"
+  },
+  "Hitmonchan": {
+    "simple": "Puño Bala",
+    "mid": "Puño Fuego",
+    "strong": "Puño Dinámico"
+  },
+  "Lickitung": {
+    "simple": "Lengüetazo",
+    "mid": "Golpe Cuerpo",
+    "strong": "Hiperrayo"
+  },
+  "Koffing": {
+    "simple": "Disparo Lodo",
+    "mid": "Bomba Lodo",
+    "strong": "Explosión"
+  },
+  "Weezing": {
+    "simple": "Disparo Lodo",
+    "mid": "Bomba Lodo",
+    "strong": "Explosión"
+  },
+  "Rhyhorn": {
+    "simple": "Placaje",
+    "mid": "Taladradora",
+    "strong": "Terremoto"
+  },
+  "Rhydon": {
+    "simple": "Placaje",
+    "mid": "Taladradora",
+    "strong": "Terremoto"
+  },
+  "Chansey": {
+    "simple": "Destructor",
+    "mid": "Golpe Cuerpo",
+    "strong": "Hiperrayo"
+  },
+  "Tangela": {
+    "simple": "Látigo Cepa",
+    "mid": "Hoja Afilada",
+    "strong": "Rayo Solar"
+  },
+  "Kangaskhan": {
+    "simple": "Arañazo",
+    "mid": "Golpe Cuerpo",
+    "strong": "Hiperrayo"
+  },
+  "Horsea": {
+    "simple": "Pistola Agua",
+    "mid": "Burbuja",
+    "strong": "Hidrobomba"
+  },
+  "Seadra": {
+    "simple": "Pistola Agua",
+    "mid": "Pulso Dragón",
+    "strong": "Hidrobomba"
+  },
+  "Goldeen": {
+    "simple": "Picotazo",
+    "mid": "Acua Cola",
+    "strong": "Cascada"
+  },
+  "Seaking": {
+    "simple": "Picotazo",
+    "mid": "Acua Cola",
+    "strong": "Megacuerno"
+  },
+  "Staryu": {
+    "simple": "Pistola Agua",
+    "mid": "Rayo Burbuja",
+    "strong": "Surf"
+  },
+  "Starmie": {
+    "simple": "Pistola Agua",
+    "mid": "Psíquico",
+    "strong": "Surf"
+  },
+  "Mr. Mime": {
+    "simple": "Confusión",
+    "mid": "Psíquico",
+    "strong": "Fuerza Lunar"
+  },
+  "Scyther": {
+    "simple": "Ataque Rápido",
+    "mid": "Tijera X",
+    "strong": "Tajo Aéreo"
+  },
+  "Jynx": {
+    "simple": "Confusión",
+    "mid": "Rayo Hielo",
+    "strong": "Ventisca"
+  },
+  "Electabuzz": {
+    "simple": "Impactrueno",
+    "mid": "Puño Trueno",
+    "strong": "Trueno"
+  },
+  "Magmar": {
+    "simple": "Ascuas",
+    "mid": "Puño Fuego",
+    "strong": "Lanzallamas"
+  },
+  "Pinsir": {
+    "simple": "Arañazo",
+    "mid": "Tijera X",
+    "strong": "Megacuerno"
+  },
+  "Tauros": {
+    "simple": "Placaje",
+    "mid": "Cornada",
+    "strong": "Giga Impacto"
+  },
+  "Magikarp": {
+    "simple": "Salpicadura",
+    "mid": "Placaje",
+    "strong": "Golpe"
+  },
+  "Gyarados": {
+    "simple": "Mordisco",
+    "mid": "Acua Cola",
+    "strong": "Hidrobomba"
+  },
+  "Lapras": {
+    "simple": "Pistola Agua",
+    "mid": "Rayo Hielo",
+    "strong": "Hidrobomba"
+  },
+  "Ditto": {
+    "simple": "Transformación",
+    "mid": "Transformación",
+    "strong": "Transformación"
+  },
+  "Eevee": {
+    "simple": "Placaje",
+    "mid": "Ataque Rápido",
+    "strong": "Última Baza"
+  },
+  "Vaporeon": {
+    "simple": "Pistola Agua",
+    "mid": "Acua Cola",
+    "strong": "Hidrobomba"
+  },
+  "Jolteon": {
+    "simple": "Impactrueno",
+    "mid": "Chispazo",
+    "strong": "Trueno"
+  },
+  "Flareon": {
+    "simple": "Ascuas",
+    "mid": "Colmillo Ígneo",
+    "strong": "Sofoco"
+  },
+  "Porygon": {
+    "simple": "Placaje",
+    "mid": "Rayo Señal",
+    "strong": "Hiperrayo"
+  },
+  "Omanyte": {
+    "simple": "Pistola Agua",
+    "mid": "Poder Pasado",
+    "strong": "Hidrobomba"
+  },
+  "Omastar": {
+    "simple": "Pistola Agua",
+    "mid": "Poder Pasado",
+    "strong": "Hidrobomba"
+  },
+  "Kabuto": {
+    "simple": "Arañazo",
+    "mid": "Tajo Umbrío",
+    "strong": "Avalancha"
+  },
+  "Kabutops": {
+    "simple": "Arañazo",
+    "mid": "Tijera X",
+    "strong": "Roca Afilada"
+  },
+  "Aerodactyl": {
+    "simple": "Ataque Ala",
+    "mid": "Avalancha",
+    "strong": "Roca Afilada"
+  },
+  "Snorlax": {
+    "simple": "Placaje",
+    "mid": "Golpe Cuerpo",
+    "strong": "Giga Impacto"
+  },
+  "Articuno": {
+    "simple": "Viento Hielo",
+    "mid": "Rayo Hielo",
+    "strong": "Ventisca"
+  },
+  "Zapdos": {
+    "simple": "Impactrueno",
+    "mid": "Chispazo",
+    "strong": "Trueno"
+  },
+  "Moltres": {
+    "simple": "Ascuas",
+    "mid": "Tajo Aéreo",
+    "strong": "Sofoco"
+  },
+  "Dratini": {
+    "simple": "Placaje",
+    "mid": "Pulso Dragón",
+    "strong": "Enfado"
+  },
+  "Dragonair": {
+    "simple": "Placaje",
+    "mid": "Pulso Dragón",
+    "strong": "Enfado"
+  },
+  "Dragonite": {
+    "simple": "Ala de Acero",
+    "mid": "Garra Dragón",
+    "strong": "Cometa Draco"
+  },
+  "Mewtwo": {
+    "simple": "Confusión",
+    "mid": "Psíquico",
+    "strong": "Onda Mental"
+  },
+  "Mew": {
+    "simple": "Destructor",
+    "mid": "Psíquico",
+    "strong": "Aura Esfera"
+  }
+};
 const TEAM_ROCKET_USER = '__team_rocket__';
 const TEAM_ROCKET_SPRITES = { top: 'assets/team-rocket-front.png', bot: 'assets/team-rocket-back.png' };
 const TEAM_ROCKET_WAIT_MS = 60000;
@@ -575,6 +1333,32 @@ function findMon(name){
   return best ? best.mon : null;
 }
 function randomMon(){ return DEX[Math.floor(Math.random() * DEX.length)]; }
+
+function pokemonAttackSet(mon){
+  return POKEMON_ATTACKS[mon] || null;
+}
+function tierMoveName(mon, tierKey){
+  const set = pokemonAttackSet(mon);
+  return (set && set[tierKey]) || ATTACK_TIERS[tierKey]?.move || ATTACKS[0];
+}
+function renderAttackOptions(side){
+  const opts = document.getElementById('atk-options-' + side);
+  if(!opts) return;
+  const f = F[side];
+  const keys = ['simple','mid','strong'];
+  opts.querySelectorAll('.atk-opt').forEach((opt, i) => {
+    const tier = ATTACK_TIERS[keys[i]];
+    if(!tier) return;
+    const title = opt.querySelector('.ao-t');
+    const sub = opt.querySelector('.ao-s');
+    if(title){
+      title.textContent = f.active ? tierMoveName(f.mon, tier.key) : tier.label;
+      title.title = title.textContent;
+    }
+    if(sub) sub.textContent = tier.min + '-' + tier.max;
+  });
+}
+
 
 function spriteCandidates(name, side){
   // Sprites animados de 5ª gen (GIF). 'top' = frontal ; 'bot' = de espaldas.
@@ -706,6 +1490,7 @@ function render(){
     if(hpNum) hpNum.textContent = f.active ? (f.hp + '/' + f.max) : '';
     const monName = document.getElementById('mon-name-' + side);
     if(monName) monName.textContent = f.active ? f.mon : '';
+    renderAttackOptions(side);
   }
 }
 
@@ -896,7 +1681,7 @@ function npcTakeTurn(side){
   const keys = Object.keys(ATTACK_TIERS);
   const tier = ATTACK_TIERS[keys[Math.floor(Math.random() * keys.length)]];
   const dmg = tier.min + Math.floor(Math.random() * (tier.max - tier.min + 1));
-  giftAttack(side, dmg, tier.move);
+  giftAttack(side, dmg, tierMoveName(F[side].mon, tier.key));
 }
 
 function clearTurnState(){
@@ -947,7 +1732,7 @@ function onTierAttack(user, nick, img, tierKey){
     return;
   }
   const dmg = tier.min + Math.floor(Math.random() * (tier.max - tier.min + 1));
-  giftAttack(side, dmg, tier.move);
+  giftAttack(side, dmg, tierMoveName(F[side].mon, tier.key));
 }
 
 // Un regalo de un usuario solo cuenta si ese usuario es uno de los 2 luchadores.

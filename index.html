@@ -167,26 +167,27 @@
     width: 30px; height: 30px; border-radius: 50%;
     background: #e84040; color: #fff; border: 3px solid #fff;
     display: none; align-items: center; justify-content: center;
-    font-size: 12px; z-index: 6; box-shadow: 0 2px 6px rgba(0,0,0,.4);
+    font-size: 12px; z-index: 12; box-shadow: 0 2px 6px rgba(0,0,0,.4);
   }
   .turn-timer.show { display: flex; }
 
   .attack-options {
     position: absolute; width: 290px;
-    display: none; flex-direction: column; gap: 4px; z-index: 6;
+    display: none; flex-direction: column; gap: 0; z-index: 6;
   }
   .attack-options.show { display: flex; }
-  .attack-options.top    { top: 114px; left: 20px; }
-  .attack-options.bottom { bottom: 204px; right: 20px; }
+  .attack-options.top    { top: 102px; left: 20px; }
+  .attack-options.bottom { bottom: 196px; right: 20px; }
   .atk-opt {
     display: flex; align-items: center; gap: 8px;
     background: var(--box-cream); border: 3px solid #383838; border-radius: 6px;
     box-shadow: inset -2px -2px 0 var(--box-shadow);
-    padding: 4px 8px;
+    padding: 2px 8px;
   }
-  .atk-opt img { width: 28px; height: 28px; object-fit: contain; image-rendering: pixelated; flex: 0 0 auto; }
+  .atk-opt + .atk-opt { margin-top: -3px; }   /* solapa bordes: sin hueco entre cajas */
+  .atk-opt img { width: 26px; height: 26px; object-fit: contain; image-rendering: pixelated; flex: 0 0 auto; }
   .atk-opt .ao-t { font-size: 10px; white-space: nowrap; }
-  .atk-opt .ao-s { font-size: 8px; color: #8a8060; margin-left: auto; white-space: nowrap; padding-left: 8px; }
+  .atk-opt .ao-s { font-size: 9px; color: #8a8060; margin-left: auto; white-space: nowrap; padding-left: 8px; }
 
   /* ===== Avatares de TikTok (foto de perfil real) ===== */
   .avatar {
@@ -382,9 +383,9 @@
       </div>
     </div>
     <div class="attack-options top" id="atk-options-top">
-      <div class="atk-opt"><img src="assets/atk-rosquilla.png" alt="" onerror="this.style.display='none'"><span class="ao-t">Simple</span><span class="ao-s">Rosquilla · 10-20</span></div>
-      <div class="atk-opt"><img src="assets/atk-gg.png" alt="" onerror="this.style.display='none'"><span class="ao-t">Intermedio</span><span class="ao-s">Super GG · 20-100</span></div>
-      <div class="atk-opt"><img src="assets/atk-manifestando.png" alt="" onerror="this.style.display='none'"><span class="ao-t">Potente</span><span class="ao-s">Manifestando · 100-300</span></div>
+      <div class="atk-opt"><img src="assets/atk-rosquilla.png" alt="" onerror="this.style.display='none'"><span class="ao-t">Simple</span><span class="ao-s">10-20</span></div>
+      <div class="atk-opt"><img src="assets/atk-gg.png" alt="" onerror="this.style.display='none'"><span class="ao-t">Intermedio</span><span class="ao-s">20-100</span></div>
+      <div class="atk-opt"><img src="assets/atk-manifestando.png" alt="" onerror="this.style.display='none'"><span class="ao-t">Potente</span><span class="ao-s">100-300</span></div>
     </div>
 
     <!-- Jugador (slot inferior) -->
@@ -406,9 +407,9 @@
       </div>
     </div>
     <div class="attack-options bottom" id="atk-options-bot">
-      <div class="atk-opt"><img src="assets/atk-rosquilla.png" alt="" onerror="this.style.display='none'"><span class="ao-t">Simple</span><span class="ao-s">Rosquilla · 10-20</span></div>
-      <div class="atk-opt"><img src="assets/atk-gg.png" alt="" onerror="this.style.display='none'"><span class="ao-t">Intermedio</span><span class="ao-s">Super GG · 20-100</span></div>
-      <div class="atk-opt"><img src="assets/atk-manifestando.png" alt="" onerror="this.style.display='none'"><span class="ao-t">Potente</span><span class="ao-s">Manifestando · 100-300</span></div>
+      <div class="atk-opt"><img src="assets/atk-rosquilla.png" alt="" onerror="this.style.display='none'"><span class="ao-t">Simple</span><span class="ao-s">10-20</span></div>
+      <div class="atk-opt"><img src="assets/atk-gg.png" alt="" onerror="this.style.display='none'"><span class="ao-t">Intermedio</span><span class="ao-s">20-100</span></div>
+      <div class="atk-opt"><img src="assets/atk-manifestando.png" alt="" onerror="this.style.display='none'"><span class="ao-t">Potente</span><span class="ao-s">100-300</span></div>
     </div>
 
     <div class="msgbox" id="msgbox">¡Esperando jugadores…!</div>

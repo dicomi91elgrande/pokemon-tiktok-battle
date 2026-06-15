@@ -86,14 +86,14 @@
   .mon {
     position: absolute;
     image-rendering: pixelated;
-    width: 168px; height: 168px;
+    width: 140px; height: 140px;
     object-fit: contain;
     filter: drop-shadow(0 4px 2px rgba(0,0,0,.25));
     transition: transform .08s linear, opacity .25s ease;
     opacity: 0;
   }
-  .mon.top    { top: 64px;  right: 70px; }
-  .mon.bottom { bottom: 96px; left: 40px; }
+  .mon.top    { top: 36px;  right: 70px; }
+  .mon.bottom { width: 116px; height: 116px; bottom: 128px; left: 48px; }
 
   @keyframes shake {
     0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)}
@@ -139,8 +139,16 @@
     background: linear-gradient(var(--hp-green), var(--hp-green-d));
     transition: width .5s ease, background .3s ease;
   }
+  .ib-row3 {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-top: 7px; gap: 8px;
+  }
+  .ib-mon {
+    font-size: 10px; color: #585030; letter-spacing: 1px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
   .hp-num {
-    text-align: right; font-size: 10px; margin-top: 6px; letter-spacing: 1px;
+    text-align: right; font-size: 10px; letter-spacing: 1px; white-space: nowrap;
   }
 
   /* ===== Avatares de TikTok (foto de perfil real) ===== */
@@ -160,8 +168,8 @@
     padding: 2px 5px; border-radius: 8px; border: 2px solid #fff; white-space: nowrap;
     max-width: 96px; overflow: hidden; text-overflow: ellipsis;
   }
-  .avatar.top    { top: 26px; right: 88px; }
-  .avatar.bottom { bottom: 248px; left: 66px; }
+  .avatar.top    { top: 22px; left: 334px; }
+  .avatar.bottom { bottom: 120px; right: 334px; }
 
   /* ===== Caja de mensajes ===== */
   .msgbox {
@@ -330,7 +338,10 @@
         <span class="hp-tag">HP</span>
         <div class="hp-track"><div class="hp-fill" id="hp-top"></div></div>
       </div>
-      <div class="hp-num" id="hpnum-top"></div>
+      <div class="ib-row3">
+        <span class="ib-mon" id="mon-name-top"></span>
+        <span class="hp-num" id="hpnum-top"></span>
+      </div>
     </div>
 
     <!-- Jugador (slot inferior) -->
@@ -345,7 +356,10 @@
         <span class="hp-tag">HP</span>
         <div class="hp-track"><div class="hp-fill" id="hp-bot"></div></div>
       </div>
-      <div class="hp-num" id="hpnum-bot"></div>
+      <div class="ib-row3">
+        <span class="ib-mon" id="mon-name-bot"></span>
+        <span class="hp-num" id="hpnum-bot"></span>
+      </div>
     </div>
 
     <div class="msgbox" id="msgbox">¡Esperando jugadores…!</div>
@@ -615,6 +629,8 @@ function render(){
     document.getElementById('lv-' + side).textContent = 'Nv' + f.lv;
     const hpNum = document.getElementById('hpnum-' + side);
     if(hpNum) hpNum.textContent = f.active ? (f.hp + '/' + f.max) : '';
+    const monName = document.getElementById('mon-name-' + side);
+    if(monName) monName.textContent = f.active ? f.mon : '';
   }
 }
 

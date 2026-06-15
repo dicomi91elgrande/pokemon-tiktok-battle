@@ -504,10 +504,21 @@ function findMon(name){
 function randomMon(){ return DEX[Math.floor(Math.random() * DEX.length)]; }
 
 function spriteCandidates(name, side){
-  // Solo Gen 1 (Rojo/Azul). 'top' = sprite frontal ; 'bot' = de espaldas.
+  // Sprites animados de 5ª gen (GIF). 'top' = frontal ; 'bot' = de espaldas.
+  // Cadena de respaldo: animado -> estático gen5 -> estático gen1 (por si falta animación).
   const s = slug(name);
-  const dir = side === 'bot' ? 'gen1-back/' : 'gen1/';
-  return [SHOWDOWN + dir + s + '.png'];
+  if(side === 'bot'){
+    return [
+      SHOWDOWN + 'gen5ani-back/' + s + '.gif',
+      SHOWDOWN + 'gen5-back/' + s + '.png',
+      SHOWDOWN + 'gen1-back/' + s + '.png'
+    ];
+  }
+  return [
+    SHOWDOWN + 'gen5ani/' + s + '.gif',
+    SHOWDOWN + 'gen5/' + s + '.png',
+    SHOWDOWN + 'gen1/' + s + '.png'
+  ];
 }
 
 /* ============ Estado del juego ============ */

@@ -287,9 +287,16 @@
     width: 64px; height: 64px;
     border-radius: 50%;
     border: 3px solid var(--gold);
-    background: #222 center/cover no-repeat;
+    background: #222;
     box-shadow: 0 3px 8px rgba(0,0,0,.4);
     z-index: 5;
+    display: none;
+  }
+  .avatar .avatar-pic {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
     display: none;
   }
   .avatar .rank {
@@ -297,6 +304,7 @@
     font-size: 8px; color:#fff; background: var(--gold);
     padding: 2px 5px; border-radius: 8px; border: 2px solid #fff; white-space: nowrap;
     max-width: 96px; overflow: hidden; text-overflow: ellipsis;
+    z-index: 1;
   }
   .avatar.top    { top: 22px; left: 334px; }
   .avatar.bottom { bottom: 120px; right: 334px; }
@@ -489,7 +497,7 @@
 
     <!-- Rival (slot superior) -->
     <div class="mon top" id="mon-top"><img alt="" /></div>
-    <div class="avatar top" id="avatar-top"><span class="rank">🥇 TOP 1</span></div>
+    <div class="avatar top" id="avatar-top"><img class="avatar-pic" alt="" referrerpolicy="no-referrer"><span class="rank">🥇 TOP 1</span></div>
     <div class="infobox top">
       <div class="turn-timer" id="turn-timer-top"></div>
       <div class="ib-row1">
@@ -517,7 +525,7 @@
 
     <!-- Jugador (slot inferior) -->
     <div class="mon bottom" id="mon-bot"><img alt="" /></div>
-    <div class="avatar bottom" id="avatar-bot"><span class="rank">🥈 TOP 2</span></div>
+    <div class="avatar bottom" id="avatar-bot"><img class="avatar-pic" alt="" referrerpolicy="no-referrer"><span class="rank">🥈 TOP 2</span></div>
     <div class="infobox bottom">
       <div class="turn-timer" id="turn-timer-bot"></div>
       <div class="ib-row1">
@@ -1578,8 +1586,9 @@ function stopBattleMusic(){
 function setFighter(side, f){
   if(F[side].isNpc) clearRocketAttacks();
   const max = f.max || 100;
+  const profileImg = cleanProfileImage(f.img);
   F[side] = {
-    user:f.user, nick:f.nick, mon:f.mon, img:f.img || '', sprite:f.sprite || '',
+    user:f.user, nick:f.nick, mon:f.mon, img:profileImg, sprite:f.sprite || '',
     hp:f.hp || max, max, lv:f.lv || 1, active:true, lastAct:Date.now(), decay:{}, missedTurns:f.missedTurns || 0,
     isNpc:!!f.isNpc
   };
@@ -1594,7 +1603,17 @@ function setFighter(side, f){
   img.src = cands[0];
 
   const av = document.getElementById('avatar-' + side);
-  av.style.backgroundImage = f.img ? "url('" + f.img + "')" : '';
+  const avImg = av.querySelector('.avatar-pic');
+  if(avImg){
+    avImg.onerror = () => { avImg.style.display = 'none'; };
+    if(profileImg){
+      avImg.style.display = 'block';
+      avImg.src = profileImg;
+    } else {
+      avImg.removeAttribute('src');
+      avImg.style.display = 'none';
+    }
+  }
   const rank = av.querySelector('.rank');
   rank.textContent = f.nick || f.user || (side === 'top' ? 'TOP 1' : 'TOP 2');
   rank.title = f.nick || f.user || '';
@@ -1612,6 +1631,8 @@ function clearFighter(side){
   const img = el.querySelector('img');
   if(img){ img.removeAttribute('src'); img.style.width = ''; img.style.height = ''; }
   const av = document.getElementById('avatar-' + side);
+  const avImg = av.querySelector('.avatar-pic');
+  if(avImg){ avImg.removeAttribute('src'); avImg.style.display = 'none'; }
   const rank = av.querySelector('.rank');
   rank.textContent = side === 'top' ? '🥇 TOP 1' : '🥈 TOP 2';
   rank.title = '';
@@ -2202,12 +2223,45 @@ function resetGame(){
   setMessage('¡Listo! Escribe un Pokémon en el chat y manda 🦦 para luchar.');
 }
 
+function cleanProfileImage(value){
+  const img = String(value || '').trim();
+  if(!img || img.includes('{') || img.includes('}') || img.toLowerCase() === 'undefined' || img.toLowerCase() === 'null') return '';
+  return img;
+}
+
+function eventProfileImage(d){
+  return cleanProfileImage(
+    d.imgprofile || d.img || d.avatar || d.avatarUrl || d.profileImage ||
+    d.profilePicture || d.profilePictureUrl || d.photo || d.picture || d.image || d.imageUrl
+  );
+}
+
+function rememberUserProfile(user, nick, img){
+  if(!user) return;
+  const r = registry[user] || {};
+  if(nick) r.nick = nick;
+  if(img) r.img = img;
+  registry[user] = r;
+  const side = getFightingSide(user);
+  if(side && img && F[side].img !== img){
+    F[side].img = img;
+    const av = document.getElementById('avatar-' + side);
+    const avImg = av && av.querySelector('.avatar-pic');
+    if(avImg){
+      avImg.onerror = () => { avImg.style.display = 'none'; };
+      avImg.style.display = 'block';
+      avImg.src = img;
+    }
+  }
+}
+
 /* ============ Despachador de eventos (vienen del servidor por SSE) ============ */
 function handleEvent(d){
   if(!d || !d.event) return;
   const user = d.username || d.user || 'anon';
   const nick = d.nickname || d.nick || user;
-  const img  = d.imgprofile || d.img || '';
+  const img  = eventProfileImage(d);
+  rememberUserProfile(user, nick, img);
   switch(d.event){
     case 'comment': onComment(user, nick, img, d.comment || d.message || d.text || d.content || ''); break;
     case 'fight':   onFight(user, nick, img); break;

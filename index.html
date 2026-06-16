@@ -586,7 +586,7 @@
     <label>🦦 Capibara — entrar a luchar / cola</label>
     <button class="alt" onclick="simGift('fight')">🦦 Mandar capibara (usuario de arriba)</button>
     <label class="toggle">
-      <input id="any-gift-entry" type="checkbox" onchange="updateAnyGiftEntryMode()" />
+      <input id="any-gift-entry" type="checkbox" onchange="updateAnyGiftEntryMode()" checked />
       <span>Cualquier regalo mete al Pokémon elegido en batalla/cola</span>
     </label>
   </div>
@@ -618,6 +618,7 @@
       <button class="alt" onclick="manualFaint('top')">☠️ KO arriba</button>
       <button class="alt" onclick="manualFaint('bot')">☠️ KO abajo</button>
     </div>
+    <button class="alt" onclick="manualTeamRocket()">🚀 Sacar TEAM ROCKET<br><small>entra o va a la cola</small></button>
     <button class="alt" onclick="simReset()">🔄 Reiniciar partida</button>
     <div class="hint">En la puja (20s) cuenta el regalo de más valor. En combate, solo puede atacar el jugador del turno activo (borde amarillo).</div>
   </div>
@@ -628,8 +629,10 @@
 const SHOWDOWN = 'https://play.pokemonshowdown.com/sprites/';
 const ATTACKS = ['PLACAJE','ARAÑAZO','RAYO','LANZALLAMAS','HIDROBOMBA','PUÑO TRUENO','MEGAPATADA','GOLPE CUERPO'];
 const MONEY_GUN_COINS = 500;
+const BASE_HP = 10;
 const BID_SECONDS = 20;          // ventana de puja para decidir quién empieza
 const TURN_SECONDS = 30;         // duración del turno de cada jugador
+const HIDDEN_GRACE_SECONDS = 5;  // margen oculto para regalos que llegan en los últimos segundos
 const TURN_TIMEOUT_FRAC = 0.30;  // % de vida máxima que pierde si no ataca en su primer turno seguido
 const HP_PER_LEVEL = 50;
 const LEVEL_DAMAGE_BONUS = 0.20; // cada nivel por encima de Nv1 suma +20% de daño
@@ -1408,7 +1411,6 @@ const POKEMON_ATTACKS = {
 };
 const TEAM_ROCKET_USER = '__team_rocket__';
 const TEAM_ROCKET_SPRITES = { top: 'assets/team-rocket-front.png', bot: 'assets/team-rocket-back.png' };
-const TEAM_ROCKET_WAIT_MS = 60000;
 const BATTLE_MUSIC_SRC = 'assets/battle-music.mp3';
 const BATTLE_MUSIC_VOLUME = 0.15;
 
@@ -1541,13 +1543,12 @@ function sizeSprite(img){
 
 /* ============ Estado del juego ============ */
 // Dos slots activos del combate
-function emptyFighter(){ return { user:'', nick:'', mon:'', img:'', sprite:'', hp:0, max:100, lv:1, active:false, lastAct:0, decay:{}, missedTurns:0, isNpc:false }; }
+function emptyFighter(){ return { user:'', nick:'', mon:'', img:'', sprite:'', hp:0, max:BASE_HP, lv:1, active:false, lastAct:0, decay:{}, missedTurns:0, isNpc:false }; }
 const F = { top: emptyFighter(), bot: emptyFighter() };
 // Cola de retadores y registro de elecciones por usuario
 let queue = [];
 let registry = {};        // username -> { nick, mon, img }
 let battleLocked = false;  // true mientras se resuelve un KO (evita dobles)
-let rocketSpawnTimer = null;
 let rocketAttackTimers = [];
 let biddingActive = false;
 let biddingTimer = null;
@@ -1558,7 +1559,7 @@ let turnTimer = null;
 let turnInterval = null;
 let turnResolving = false;  // true mientras se muestra el ataque en verde antes de pasar turno
 let battleMusic = null;
-let anyGiftEntryEnabled = false;
+let anyGiftEntryEnabled = true;
 let selectionNotices = [];
 
 function getBattleMusic(){
@@ -1591,17 +1592,17 @@ function avatarUrl(img){
 /* ============ Pintar combatientes ============ */
 function setFighter(side, f){
   if(F[side].isNpc) clearRocketAttacks();
-  const max = f.max || 100;
+  const max = f.max || BASE_HP;
   const profileImg = cleanProfileImage(f.img);
   F[side] = {
-    user:f.user, nick:f.nick, mon:f.mon, img:profileImg, sprite:f.sprite || '',
+    user:f.user, nick:f.nick, mon:f.mon, img:profileImg, sprite:f.sprite || (f.isNpc ? TEAM_ROCKET_SPRITES[side] : ''),
     hp:f.hp || max, max, lv:f.lv || 1, active:true, lastAct:Date.now(), decay:{}, missedTurns:f.missedTurns || 0,
     isNpc:!!f.isNpc
   };
   const el = document.getElementById('mon-' + side);
   el.classList.remove('anim-faint','anim-shake','anim-blink','anim-lunge','anim-powerup');
   const img = el.querySelector('img');
-  const cands = f.sprite ? [f.sprite] : spriteCandidates(f.mon, side);
+  const cands = F[side].sprite ? [F[side].sprite] : spriteCandidates(f.mon, side);
   let ci = 0;
   img.onload  = () => { sizeSprite(img); el.style.opacity = 1; };
   img.onerror = () => { ci++; if(ci < cands.length) img.src = cands[ci]; else el.style.opacity = .15; };
@@ -1757,6 +1758,7 @@ function giftAttack(attacker, dmg, moveName){
   // marca el turno como "resolviendo" y detiene la cuenta atrás (ya atacó)
   turnResolving = true;
   if(turnInterval){ clearInterval(turnInterval); turnInterval = null; }
+  if(turnTimer){ clearTimeout(turnTimer); turnTimer = null; }
   highlightAttackOption(attacker, tierKey, true);   // casilla en verde
   doAttack(attacker, target, dmg, move, () => {
     // deja el ataque en verde un par de segundos antes de pasar el turno
@@ -1816,9 +1818,13 @@ function startBidding(){
   biddingInterval = setInterval(() => {
     remaining -= 1;
     showBidBanner(remaining);
-    if(remaining <= 0) finishBidding();
+    if(remaining <= 0){
+      if(biddingInterval) clearInterval(biddingInterval);
+      biddingInterval = null;
+      hideBidBanner();
+    }
   }, 1000);
-  biddingTimer = setTimeout(finishBidding, BID_SECONDS * 1000 + 150);
+  biddingTimer = setTimeout(finishBidding, (BID_SECONDS + HIDDEN_GRACE_SECONDS) * 1000 + 150);
 }
 
 function registerBid(side, value){
@@ -1851,6 +1857,11 @@ function clearBidding(){
   if(banner) banner.classList.remove('show');
 }
 
+function hideBidBanner(){
+  const banner = document.getElementById('prep-banner');
+  if(banner) banner.classList.remove('show');
+}
+
 function showBidBanner(seconds){
   const banner = document.getElementById('prep-banner');
   const count = document.getElementById('prep-count');
@@ -1875,8 +1886,13 @@ function startTurn(side){
   turnInterval = setInterval(() => {
     remaining -= 1;
     updateTurnUI(side, remaining);
-    if(remaining <= 0) turnTimeout(side);
+    if(remaining <= 0){
+      if(turnInterval) clearInterval(turnInterval);
+      turnInterval = null;
+      hideTurnUI(side);
+    }
   }, 1000);
+  turnTimer = setTimeout(() => turnTimeout(side), (TURN_SECONDS + HIDDEN_GRACE_SECONDS) * 1000 + 150);
 }
 
 // Se acaba el turno sin atacar: pierde vida y pasa el turno.
@@ -2062,35 +2078,39 @@ function singleHumanSide(){
 }
 
 function syncRocketTimer(){
-  const side = singleHumanSide();
-  if(!side){
-    if(rocketSpawnTimer){
-      clearTimeout(rocketSpawnTimer);
-      rocketSpawnTimer = null;
-    }
-    return;
-  }
-  if(rocketSpawnTimer) return;
-  rocketSpawnTimer = setTimeout(() => {
-    rocketSpawnTimer = null;
-    spawnTeamRocket();
-  }, TEAM_ROCKET_WAIT_MS);
+  // TEAM ROCKET ya no aparece solo: lo lanza el botón del panel.
 }
 
-function spawnTeamRocket(){
-  const targetSide = singleHumanSide();
-  if(!targetSide) return;
-  const rocketSide = targetSide === 'top' ? 'bot' : 'top';
-  const target = F[targetSide];
-  setFighter(rocketSide, {
+function teamRocketFighter(level){
+  return {
     user: TEAM_ROCKET_USER,
     nick: 'TEAM ROCKET',
     mon: 'TEAM ROCKET',
-    sprite: TEAM_ROCKET_SPRITES[rocketSide],
-    lv: target.lv,
+    lv: level || 1,
+    max: BASE_HP + ((Math.max(1, level || 1) - 1) * HP_PER_LEVEL),
     isNpc: true
-  });
-  setMessage('¡TEAM ROCKET aparece para retar a ' + target.nick + '!');
+  };
+}
+
+function hasTeamRocket(){
+  return (F.top.active && F.top.isNpc) || (F.bot.active && F.bot.isNpc) || queue.some(f => f.isNpc);
+}
+
+function manualTeamRocket(){
+  if(battleLocked) return;
+  if(hasTeamRocket()){
+    setMessage('TEAM ROCKET ya está esperando su oportunidad.');
+    return;
+  }
+  const level = Math.max(F.top.active ? F.top.lv : 1, F.bot.active ? F.bot.lv : 1);
+  const rocket = teamRocketFighter(level);
+  if(F.top.active && F.bot.active){
+    queue.push(rocket);
+    renderQueue();
+    setMessage('🚀 TEAM ROCKET se pone en la cola.');
+    return;
+  }
+  enterBattle(rocket);
   maybeStartBattle();
 }
 
@@ -2214,10 +2234,6 @@ function renderQueue(){
 }
 
 function resetGame(){
-  if(rocketSpawnTimer){
-    clearTimeout(rocketSpawnTimer);
-    rocketSpawnTimer = null;
-  }
   stopBattleMusic();
   clearBidding();
   clearTurnState();
@@ -2268,6 +2284,15 @@ function rememberUserProfile(user, nick, img){
       avImg.src = avatarUrl(img);
     }
   }
+}
+
+function hideTurnUI(side){
+  const opts = document.getElementById('atk-options-' + side);
+  if(opts) opts.classList.remove('show');
+  const support = document.getElementById('support-options-' + side);
+  if(support) support.classList.remove('show');
+  const timer = document.getElementById('turn-timer-' + side);
+  if(timer) timer.classList.remove('show');
 }
 
 /* ============ Despachador de eventos (vienen del servidor por SSE) ============ */

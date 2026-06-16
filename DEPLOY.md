@@ -83,6 +83,7 @@ Opcional, si quieres mantener un webhook genérico para otros regalos:
 - Cuando hay 2 luchadores empieza una **puja de 20 segundos**. Durante esa puja, los regalos de ataque deciden quién empieza: Rosquilla vale `1`, Super GG vale `50`, Manifestando vale `200` y pistola de dinero vale `500`.
 - Después de la puja, el combate va por **turnos de 30 segundos**. Solo puede atacar el jugador cuyo turno está activo. Si no ataca a tiempo una vez, pierde el `30%` de su vida máxima y pasa el turno; si vuelve a perder su siguiente turno seguido, se debilita.
 - Los ataques específicos hacen daño aleatorio: Rosquilla `10-20`, Super GG `20-100`, Manifestando `100-300`.
+- Cada nivel por encima de Nv1 aumenta el daño final del ataque un `20%`.
 - El webhook genérico `event:"attack"` usa `{coins}` como daño/puja, pero es opcional si ya usas los 3 ataques específicos.
 - La pistola de dinero tiene su propio disparador/webhook (`event:"money_gun"`). Pone al usuario primero en la cola si no está luchando. Si ese usuario ya está luchando, cuenta como puja/ataque de `500`.
 - El sombrero con bigote (`event:"potion"`) solo funciona en el turno del luchador y cura `150 HP`; al usarlo pasa el turno.

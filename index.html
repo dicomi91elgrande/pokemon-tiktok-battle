@@ -618,6 +618,7 @@ const BID_SECONDS = 20;          // ventana de puja para decidir quién empieza
 const TURN_SECONDS = 30;         // duración del turno de cada jugador
 const TURN_TIMEOUT_FRAC = 0.30;  // % de vida máxima que pierde si no ataca en su primer turno seguido
 const HP_PER_LEVEL = 50;
+const LEVEL_DAMAGE_BONUS = 0.20; // cada nivel por encima de Nv1 suma +20% de daño
 const HAT_HEAL_HP = 150;
 const GALAXY_LEVELS = 5;
 // Tipos de ataque (cada uno será un regalo/webhook). Daño aleatorio en su rango.
@@ -1711,7 +1712,7 @@ function giftAttack(attacker, dmg, moveName){
   const target = attacker === 'top' ? 'bot' : 'top';
   if(!F[target].active || F[target].hp <= 0) return;
   registerActivity(attacker);
-  doAttack(attacker, target, dmg, moveName, () => {
+  doAttack(attacker, target, scaleDamageForLevel(attacker, dmg), moveName, () => {
     if(F[target].hp > 0 && !battleLocked) startTurn(target);
   });
 }
@@ -2038,6 +2039,12 @@ function spawnTeamRocket(){
 function clearRocketAttacks(){
   for(const t of rocketAttackTimers) clearTimeout(t);
   rocketAttackTimers = [];
+}
+
+function scaleDamageForLevel(side, baseDmg){
+  const lv = Math.max(1, F[side]?.lv || 1);
+  const mult = 1 + ((lv - 1) * LEVEL_DAMAGE_BONUS);
+  return Math.max(1, Math.round(baseDmg * mult));
 }
 
 function doAttack(attacker, target, dmg, moveName, onDone){

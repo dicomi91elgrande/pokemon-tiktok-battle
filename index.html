@@ -616,7 +616,7 @@ const ATTACKS = ['PLACAJE','ARAÑAZO','RAYO','LANZALLAMAS','HIDROBOMBA','PUÑO T
 const MONEY_GUN_COINS = 500;
 const BID_SECONDS = 20;          // ventana de puja para decidir quién empieza
 const TURN_SECONDS = 30;         // duración del turno de cada jugador
-const TURN_TIMEOUT_FRAC = 0.20;  // % de vida que pierde si no ataca en su turno
+const TURN_TIMEOUT_FRAC = 0.30;  // % de vida máxima que pierde si no ataca en su primer turno seguido
 const HP_PER_LEVEL = 50;
 const HAT_HEAL_HP = 150;
 const GALAXY_LEVELS = 5;
@@ -1521,7 +1521,7 @@ function sizeSprite(img){
 
 /* ============ Estado del juego ============ */
 // Dos slots activos del combate
-function emptyFighter(){ return { user:'', nick:'', mon:'', img:'', sprite:'', hp:0, max:100, lv:1, active:false, lastAct:0, decay:{}, isNpc:false }; }
+function emptyFighter(){ return { user:'', nick:'', mon:'', img:'', sprite:'', hp:0, max:100, lv:1, active:false, lastAct:0, decay:{}, missedTurns:0, isNpc:false }; }
 const F = { top: emptyFighter(), bot: emptyFighter() };
 // Cola de retadores y registro de elecciones por usuario
 let queue = [];
@@ -1567,7 +1567,7 @@ function setFighter(side, f){
   const max = f.max || 100;
   F[side] = {
     user:f.user, nick:f.nick, mon:f.mon, img:f.img || '', sprite:f.sprite || '',
-    hp:f.hp || max, max, lv:f.lv || 1, active:true, lastAct:Date.now(), decay:{},
+    hp:f.hp || max, max, lv:f.lv || 1, active:true, lastAct:Date.now(), decay:{}, missedTurns:f.missedTurns || 0,
     isNpc:!!f.isNpc
   };
   const el = document.getElementById('mon-' + side);
@@ -1644,6 +1644,11 @@ function escapeHtml(text){
   })[c]);
 }
 
+function shortName(name){
+  const text = String(name || '');
+  return text.length > 9 ? text.slice(0, 9) + '...' : text;
+}
+
 function addSelectionNotice(nick, mon){
   selectionNotices.unshift({ nick, mon });
   selectionNotices = selectionNotices.slice(0, 8);
@@ -1658,7 +1663,7 @@ function renderSelectionNotices(){
     return;
   }
   el.innerHTML = selectionNotices
-    .map(s => '<span class="qchip"><b>' + escapeHtml(s.nick) + ':</b> ' + escapeHtml(s.mon) + '</span>')
+    .map(s => '<span class="qchip" title="' + escapeHtml(s.nick) + ': ' + escapeHtml(s.mon) + '"><b>' + escapeHtml(shortName(s.nick)) + ':</b> ' + escapeHtml(s.mon) + '</span>')
     .join('');
 }
 
@@ -1818,12 +1823,15 @@ function startTurn(side){
 function turnTimeout(side){
   clearTurnState();
   if(!F[side].active) return;
-  const dmg = Math.max(1, Math.round(F[side].max * TURN_TIMEOUT_FRAC));
+  F[side].missedTurns = (F[side].missedTurns || 0) + 1;
+  const dmg = F[side].missedTurns >= 2 ? F[side].hp : Math.max(1, Math.round(F[side].max * TURN_TIMEOUT_FRAC));
   F[side].hp = Math.max(0, F[side].hp - dmg);
   const img = document.getElementById('mon-' + side);
   img.classList.remove('anim-blink'); void img.offsetWidth; img.classList.add('anim-blink');
   popDamage(side, dmg);
-  setMessage('⏳ ¡' + F[side].nick + ' no atacó a tiempo! Pierde ' + dmg + ' HP.');
+  setMessage(F[side].missedTurns >= 2
+    ? '⏳ ¡' + F[side].nick + ' perdió dos turnos seguidos y se debilitó!'
+    : '⏳ ¡' + F[side].nick + ' no atacó a tiempo! Pierde ' + dmg + ' HP.');
   render();
   if(F[side].hp <= 0){ faintFighter(side, side === 'top' ? 'bot' : 'top'); return; }
   startTurn(side === 'top' ? 'bot' : 'top');
@@ -2055,6 +2063,7 @@ function doAttack(attacker, target, dmg, moveName, onDone){
 function registerActivity(side){
   F[side].lastAct = Date.now();
   F[side].decay = {};
+  F[side].missedTurns = 0;
 }
 
 // Al ganar: sube de nivel, +50 de vida máxima y se cura del todo.
@@ -2135,7 +2144,7 @@ function renderQueue(){
     syncRocketTimer();
     return;
   }
-  el.innerHTML = queue.map((c, i) => '<span class="qchip"><b>' + (i+1) + '.</b> ' + c.nick + '</span>').join('');
+  el.innerHTML = queue.map((c, i) => '<span class="qchip" title="' + escapeHtml(c.nick) + '"><b>' + (i+1) + '.</b> ' + escapeHtml(shortName(c.nick)) + '</span>').join('');
   syncRocketTimer();
 }
 

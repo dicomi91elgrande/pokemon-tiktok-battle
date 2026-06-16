@@ -1579,7 +1579,6 @@ function tryEnterFromGift(user, nick, img){
   r.nick = nick; if(img) r.img = img;
   if(isInQueue(user)){
     registry[user] = r;
-    setMessage('🧍 ' + nick + ' ya está en la cola.');
     return;
   }
   if(!r.mon){
@@ -1625,7 +1624,6 @@ function enterBattle(f){
   } else {
     queue.push(f);
     renderQueue();
-    setMessage('🧍 ' + f.nick + ' espera en la cola (' + queue.length + ').');
   }
   if(entered) maybeStartBattle();
 }

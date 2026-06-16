@@ -104,11 +104,19 @@
   @keyframes lunge-bot   { 0%,100%{transform:translate(0,0)} 50%{transform:translate(26px,-18px)} }
   @keyframes blink       { 0%,100%{opacity:1} 50%{opacity:.15} }
   @keyframes faint       { from{transform:translateY(0);opacity:1} to{transform:translateY(60px);opacity:0} }
+  @keyframes powerUp {
+    0%{transform:scale(1);filter:drop-shadow(0 4px 2px rgba(0,0,0,.25)) brightness(1)}
+    25%{transform:scale(1.12);filter:drop-shadow(0 0 12px #72d7ff) brightness(1.5)}
+    50%{transform:scale(1.02);filter:drop-shadow(0 0 18px #fff06a) brightness(1.8)}
+    75%{transform:scale(1.16);filter:drop-shadow(0 0 16px #8cff9b) brightness(1.45)}
+    100%{transform:scale(1);filter:drop-shadow(0 4px 2px rgba(0,0,0,.25)) brightness(1)}
+  }
   .anim-shake { animation: shake .4s linear; }
   .anim-blink { animation: blink .12s linear 4; }
   .top.anim-lunge { animation: lunge-top .35s ease; }
   .bottom.anim-lunge { animation: lunge-bot .35s ease; }
   .anim-faint { animation: faint .7s ease forwards; }
+  .anim-powerup { animation: powerUp 1.1s ease-in-out; }
 
   /* ===== Cajas de info (nombre / nivel / HP) ===== */
   .infobox {
@@ -190,23 +198,24 @@
   .atk-opt .ao-s { font-size: 9px; color: #8a8060; margin-left: auto; white-space: nowrap; padding-left: 8px; }
   .support-options {
     position: absolute;
-    width: 72px;
+    width: 96px;
     display: none;
     flex-direction: column;
     gap: 4px;
     z-index: 7;
   }
   .support-options.show { display: flex; }
-  .support-options.top { top: 102px; left: 278px; }
-  .support-options.bottom { bottom: 196px; right: 278px; }
+  .support-options.top { top: 102px; left: 280px; }
+  .support-options.bottom { bottom: 196px; right: 280px; }
   .support-opt {
-    min-height: 35px;
-    display: flex; align-items: center; justify-content: center; gap: 4px;
+    min-height: 39px;
+    display: flex; align-items: center; justify-content: flex-start; gap: 6px;
     background: var(--box-cream); border: 3px solid #383838; border-radius: 6px;
     box-shadow: inset -2px -2px 0 var(--box-shadow);
     color: #38a850; font-size: 9px; white-space: nowrap;
+    padding: 3px 7px;
   }
-  .support-opt img { width: 24px; height: 24px; object-fit: contain; image-rendering: pixelated; flex: 0 0 auto; }
+  .support-opt img { width: 27px; height: 27px; object-fit: contain; image-rendering: pixelated; flex: 0 0 auto; }
 
   /* ===== Avatares de TikTok (foto de perfil real) ===== */
   .avatar {
@@ -1504,7 +1513,7 @@ function setFighter(side, f){
     isNpc:!!f.isNpc
   };
   const el = document.getElementById('mon-' + side);
-  el.classList.remove('anim-faint','anim-shake','anim-blink','anim-lunge');
+  el.classList.remove('anim-faint','anim-shake','anim-blink','anim-lunge','anim-powerup');
   const img = el.querySelector('img');
   const cands = f.sprite ? [f.sprite] : spriteCandidates(f.mon, side);
   let ci = 0;
@@ -1527,7 +1536,7 @@ function clearFighter(side){
   if(F[side].isNpc) clearRocketAttacks();
   F[side] = emptyFighter();
   const el = document.getElementById('mon-' + side);
-  el.classList.remove('anim-faint','anim-shake','anim-blink','anim-lunge');
+  el.classList.remove('anim-faint','anim-shake','anim-blink','anim-lunge','anim-powerup');
   el.style.opacity = 0;
   const img = el.querySelector('img');
   if(img){ img.removeAttribute('src'); img.style.width = ''; img.style.height = ''; }
@@ -1879,6 +1888,8 @@ function onGalaxyLevel(user){
   F[side].max += GALAXY_LEVELS * HP_PER_LEVEL;
   F[side].hp = F[side].max;
   render();
+  const mon = document.getElementById('mon-' + side);
+  mon.classList.remove('anim-powerup'); void mon.offsetWidth; mon.classList.add('anim-powerup');
   popHeal(side, F[side].hp - before);
   setMessage('🌌 ¡' + F[side].nick + ' subió +' + GALAXY_LEVELS + ' niveles y recuperó toda la vida!');
   finishSupportTurn(side);

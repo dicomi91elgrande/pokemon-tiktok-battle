@@ -59,6 +59,10 @@ def slug(text):
 DEX = [{'name': name, 'slug': slug(name)} for name in DEX_NAMES]
 
 
+def log(*args):
+    print(*args, flush=True)
+
+
 def edit_distance(a, b):
     prev = list(range(len(b) + 1))
     for i, ca in enumerate(a, 1):
@@ -242,9 +246,15 @@ class Handler(BaseHTTPRequestHandler):
             obj = json.loads(raw.decode('utf-8')) if raw else {}
         except Exception:
             obj = {'event': 'raw', 'raw': raw.decode('utf-8', 'replace')}
+        if not isinstance(obj, dict):
+            obj = {'event': 'raw', 'raw': obj}
         if obj.get('event') == 'comment':
             matched_mon = find_mon(obj.get('comment') or obj.get('message') or obj.get('text') or obj.get('content') or '')
             if not matched_mon:
+                log('webhook filtered comment:', {
+                    'username': obj.get('username') or obj.get('user'),
+                    'comment': obj.get('comment') or obj.get('message') or obj.get('text') or obj.get('content') or '',
+                })
                 self.send_response(200)
                 self._cors()
                 self.send_header('Content-Type', 'application/json')
@@ -253,7 +263,15 @@ class Handler(BaseHTTPRequestHandler):
                 return
             obj['comment'] = matched_mon
         broadcast(obj)
-        print('webhook:', obj)
+        avatar = obj.get('imgprofile') or obj.get('img') or obj.get('avatar') or obj.get('avatarUrl') or obj.get('profileImage') or obj.get('profilePicture') or obj.get('profilePictureUrl') or ''
+        log('webhook:', {
+            'event': obj.get('event'),
+            'username': obj.get('username') or obj.get('user'),
+            'nickname': obj.get('nickname') or obj.get('nick'),
+            'has_imgprofile': bool(avatar and '{' not in str(avatar)),
+            'imgprofile': str(avatar)[:180],
+            'coins': obj.get('coins'),
+        })
         self.send_response(200)
         self._cors()
         self.send_header('Content-Type', 'application/json')
@@ -270,9 +288,9 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == '__main__':
-    print('=' * 56)
-    print(' Pokemon TikTok Battle - servidor puente')
-    print(f' Overlay para OBS : http://localhost:{PORT}/')
-    print(f' URL del WebHook  : http://localhost:{PORT}/webhook')
-    print('=' * 56)
+    log('=' * 56)
+    log(' Pokemon TikTok Battle - servidor puente')
+    log(f' Overlay para OBS : http://localhost:{PORT}/')
+    log(f' URL del WebHook  : http://localhost:{PORT}/webhook')
+    log('=' * 56)
     ThreadingHTTPServer(('0.0.0.0', PORT), Handler).serve_forever()

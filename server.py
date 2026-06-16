@@ -14,7 +14,9 @@ Arrancar con:   python server.py
 import json
 import os
 import queue
+import re
 import threading
+import unicodedata
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 
@@ -25,6 +27,77 @@ BASE = os.path.dirname(os.path.abspath(__file__))
 # Lista de clientes SSE conectados (cada overlay abierto = una cola)
 clients = []
 clients_lock = threading.Lock()
+
+DEX_NAMES = [
+    'Bulbasaur','Ivysaur','Venusaur','Charmander','Charmeleon','Charizard','Squirtle','Wartortle','Blastoise','Caterpie',
+    'Metapod','Butterfree','Weedle','Kakuna','Beedrill','Pidgey','Pidgeotto','Pidgeot','Rattata','Raticate',
+    'Spearow','Fearow','Ekans','Arbok','Pikachu','Raichu','Sandshrew','Sandslash','Nidoran♀','Nidorina',
+    'Nidoqueen','Nidoran♂','Nidorino','Nidoking','Clefairy','Clefable','Vulpix','Ninetales','Jigglypuff','Wigglytuff',
+    'Zubat','Golbat','Oddish','Gloom','Vileplume','Paras','Parasect','Venonat','Venomoth','Diglett',
+    'Dugtrio','Meowth','Persian','Psyduck','Golduck','Mankey','Primeape','Growlithe','Arcanine','Poliwag',
+    'Poliwhirl','Poliwrath','Abra','Kadabra','Alakazam','Machop','Machoke','Machamp','Bellsprout','Weepinbell',
+    'Victreebel','Tentacool','Tentacruel','Geodude','Graveler','Golem','Ponyta','Rapidash','Slowpoke','Slowbro',
+    'Magnemite','Magneton',"Farfetch'd",'Doduo','Dodrio','Seel','Dewgong','Grimer','Muk','Shellder',
+    'Cloyster','Gastly','Haunter','Gengar','Onix','Drowzee','Hypno','Krabby','Kingler','Voltorb',
+    'Electrode','Exeggcute','Exeggutor','Cubone','Marowak','Hitmonlee','Hitmonchan','Lickitung','Koffing','Weezing',
+    'Rhyhorn','Rhydon','Chansey','Tangela','Kangaskhan','Horsea','Seadra','Goldeen','Seaking','Staryu',
+    'Starmie','Mr. Mime','Scyther','Jynx','Electabuzz','Magmar','Pinsir','Tauros','Magikarp','Gyarados',
+    'Lapras','Ditto','Eevee','Vaporeon','Jolteon','Flareon','Porygon','Omanyte','Omastar','Kabuto',
+    'Kabutops','Aerodactyl','Snorlax','Articuno','Zapdos','Moltres','Dratini','Dragonair','Dragonite','Mewtwo','Mew'
+]
+
+
+def slug(text):
+    text = (text or '').strip().lower().replace('♀', 'f').replace('♂', 'm')
+    text = unicodedata.normalize('NFD', text)
+    text = ''.join(ch for ch in text if unicodedata.category(ch) != 'Mn')
+    text = re.sub(r"[.'’\-\s]", '', text)
+    return re.sub(r'[^a-z0-9]', '', text)
+
+
+DEX = [{'name': name, 'slug': slug(name)} for name in DEX_NAMES]
+
+
+def edit_distance(a, b):
+    prev = list(range(len(b) + 1))
+    for i, ca in enumerate(a, 1):
+        cur = [i]
+        for j, cb in enumerate(b, 1):
+            cost = 0 if ca == cb else 1
+            cur.append(min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost))
+        prev = cur
+    return prev[-1]
+
+
+def fuzzy_limit(text):
+    return 2 if len(text) >= 8 else 1
+
+
+def find_mon(text):
+    base = slug(text)
+    if not base:
+        return None
+    candidates = [base]
+    for word in re.findall(r"[A-Za-zÁÉÍÓÚÜÑáéíóúüñ♀♂.'’-]+", text or ''):
+        word_slug = slug(word)
+        if word_slug and word_slug not in candidates:
+            candidates.append(word_slug)
+    for query in candidates:
+        exact = next((mon for mon in DEX if mon['slug'] == query), None)
+        if exact:
+            return exact['name']
+    for query in candidates:
+        if len(query) >= 4:
+            partial = next((mon for mon in DEX if mon['slug'].startswith(query) or query in mon['slug'] or mon['slug'] in query), None)
+            if partial:
+                return partial['name']
+    best = None
+    for query in candidates:
+        for mon in DEX:
+            dist = edit_distance(query, mon['slug'])
+            if dist <= fuzzy_limit(query) and (best is None or dist < best['dist']):
+                best = {'name': mon['name'], 'dist': dist}
+    return best['name'] if best else None
 
 
 def broadcast(obj):
@@ -131,6 +204,16 @@ class Handler(BaseHTTPRequestHandler):
             obj = json.loads(raw.decode('utf-8')) if raw else {}
         except Exception:
             obj = {'event': 'raw', 'raw': raw.decode('utf-8', 'replace')}
+        if obj.get('event') == 'comment':
+            matched_mon = find_mon(obj.get('comment') or obj.get('message') or obj.get('text') or obj.get('content') or '')
+            if not matched_mon:
+                self.send_response(200)
+                self._cors()
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(b'{"ok":true,"filtered":true}')
+                return
+            obj['comment'] = matched_mon
         broadcast(obj)
         print('webhook:', obj)
         self.send_response(200)

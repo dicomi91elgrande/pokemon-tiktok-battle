@@ -2230,7 +2230,16 @@ function resetGame(){
 }
 
 function cleanProfileImage(value){
-  const img = String(value || '').trim();
+  let img = String(value || '').trim();
+  for(let i = 0; i < 2 && /%[0-9a-f]{2}/i.test(img); i++){
+    try {
+      const decoded = decodeURIComponent(img);
+      if(decoded === img) break;
+      img = decoded.trim();
+    } catch(_) {
+      break;
+    }
+  }
   if(!img || img.includes('{') || img.includes('}') || img.toLowerCase() === 'undefined' || img.toLowerCase() === 'null') return '';
   return img;
 }

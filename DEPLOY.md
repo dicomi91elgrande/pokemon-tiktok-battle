@@ -68,7 +68,8 @@ POST Body de cada una:
 | Regalo 🏆 Super GG (ataque intermedio) | `{"event":"attack_mid","username":"{username}","nickname":"{nickname}","imgprofile":"{imgprofile}"}` |
 | Regalo 🔮 Manifestando (ataque potente) | `{"event":"attack_strong","username":"{username}","nickname":"{nickname}","imgprofile":"{imgprofile}"}` |
 | Regalo pistola de dinero | `{"event":"money_gun","username":"{username}","nickname":"{nickname}","imgprofile":"{imgprofile}"}` |
-| Regalo gafas de sol (poción) | `{"event":"potion","username":"{username}","nickname":"{nickname}","imgprofile":"{imgprofile}"}` |
+| Regalo sombrero con bigote (poción +150 HP) | `{"event":"potion","username":"{username}","nickname":"{nickname}","imgprofile":"{imgprofile}"}` |
+| Regalo galaxia (+5 niveles) | `{"event":"level_galaxy","username":"{username}","nickname":"{nickname}","imgprofile":"{imgprofile}"}` |
 
 Opcional, si quieres mantener un webhook genérico para otros regalos:
 
@@ -84,14 +85,15 @@ Opcional, si quieres mantener un webhook genérico para otros regalos:
 - Los ataques específicos hacen daño aleatorio: Rosquilla `10-20`, Super GG `20-100`, Manifestando `100-300`.
 - El webhook genérico `event:"attack"` usa `{coins}` como daño/puja, pero es opcional si ya usas los 3 ataques específicos.
 - La pistola de dinero tiene su propio disparador/webhook (`event:"money_gun"`). Pone al usuario primero en la cola si no está luchando. Si ese usuario ya está luchando, cuenta como puja/ataque de `500`.
-- Las gafas de sol tienen su propio disparador/webhook (`event:"potion"`). Solo funcionan si el usuario está luchando y curan el 50% de la vida máxima de su Pokémon; no hacen daño al rival.
+- El sombrero con bigote (`event:"potion"`) solo funciona en el turno del luchador y cura `150 HP`; al usarlo pasa el turno.
+- La galaxia (`event:"level_galaxy"`) solo funciona en el turno del luchador, sube `5` niveles, aumenta la vida máxima correspondiente y restaura toda la vida; al usarla pasa el turno.
 - En el panel del overlay hay un interruptor para permitir que cualquier regalo normal meta al usuario en batalla/cola si ya eligió Pokémon. Si está apagado, solo entra con capibara.
 - Cada personaje empieza en **Nv1 con 100 HP**. Al ganar sube de nivel, gana **+50 HP** máx. y vuelve a curarse al **100%**.
 - Cuando empieza la puja/combate, suena en bucle `assets/battle-music.mp3` como música de fondo a volumen bajo.
 - Puedes debilitar manualmente al luchador de arriba o abajo desde el panel de control del overlay.
 - Si durante 60 segundos solo hay un luchador humano y nadie entra a retarle, aparece **TEAM ROCKET** en el hueco libre con el mismo nivel. Ahora juega dentro del sistema de turnos como un rival NPC.
 
-> ⚠️ Importante: si usas también el webhook genérico `event:"attack"`, configura ese disparador para **excluir** capibara, pistola de dinero, gafas de sol, rosquilla, Super GG y Manifestando. Cada uno de esos regalos ya tiene su propio webhook.
+> ⚠️ Importante: si usas también el webhook genérico `event:"attack"`, configura ese disparador para **excluir** capibara, pistola de dinero, sombrero con bigote, galaxia, rosquilla, Super GG y Manifestando. Cada uno de esos regalos ya tiene su propio webhook.
 > Nota: `{coins}` va **sin comillas** (es un número).
 
 ## Paso 5 (opcional) — Proteger el webhook con un token

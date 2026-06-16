@@ -172,7 +172,7 @@
   .turn-timer.show { display: flex; }
 
   .attack-options {
-    position: absolute; width: 290px;
+    position: absolute; width: 250px;
     display: none; flex-direction: column; gap: 0; z-index: 6;
   }
   .attack-options.show { display: flex; }
@@ -188,6 +188,25 @@
   .atk-opt img { width: 26px; height: 26px; object-fit: contain; image-rendering: pixelated; flex: 0 0 auto; }
   .atk-opt .ao-t { font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
   .atk-opt .ao-s { font-size: 9px; color: #8a8060; margin-left: auto; white-space: nowrap; padding-left: 8px; }
+  .support-options {
+    position: absolute;
+    width: 72px;
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+    z-index: 7;
+  }
+  .support-options.show { display: flex; }
+  .support-options.top { top: 102px; left: 278px; }
+  .support-options.bottom { bottom: 196px; right: 278px; }
+  .support-opt {
+    min-height: 35px;
+    display: flex; align-items: center; justify-content: center; gap: 4px;
+    background: var(--box-cream); border: 3px solid #383838; border-radius: 6px;
+    box-shadow: inset -2px -2px 0 var(--box-shadow);
+    color: #38a850; font-size: 9px; white-space: nowrap;
+  }
+  .support-opt img { width: 24px; height: 24px; object-fit: contain; image-rendering: pixelated; flex: 0 0 auto; }
 
   /* ===== Avatares de TikTok (foto de perfil real) ===== */
   .avatar {
@@ -418,6 +437,10 @@
       <div class="atk-opt"><img src="assets/atk-gg.png" alt="" onerror="this.style.display='none'"><span class="ao-t">Intermedio</span><span class="ao-s">20-100</span></div>
       <div class="atk-opt"><img src="assets/atk-manifestando.png" alt="" onerror="this.style.display='none'"><span class="ao-t">Potente</span><span class="ao-s">100-300</span></div>
     </div>
+    <div class="support-options top" id="support-options-top">
+      <div class="support-opt"><img src="assets/hat-mustache.png" alt="" onerror="this.style.display='none'"><span>+150 HP</span></div>
+      <div class="support-opt"><img src="assets/galaxy.png" alt="" onerror="this.style.display='none'"><span>+5lvl</span></div>
+    </div>
 
     <!-- Jugador (slot inferior) -->
     <div class="mon bottom" id="mon-bot"><img alt="" /></div>
@@ -441,6 +464,10 @@
       <div class="atk-opt"><img src="assets/atk-rosquilla.png" alt="" onerror="this.style.display='none'"><span class="ao-t">Simple</span><span class="ao-s">10-20</span></div>
       <div class="atk-opt"><img src="assets/atk-gg.png" alt="" onerror="this.style.display='none'"><span class="ao-t">Intermedio</span><span class="ao-s">20-100</span></div>
       <div class="atk-opt"><img src="assets/atk-manifestando.png" alt="" onerror="this.style.display='none'"><span class="ao-t">Potente</span><span class="ao-s">100-300</span></div>
+    </div>
+    <div class="support-options bottom" id="support-options-bot">
+      <div class="support-opt"><img src="assets/hat-mustache.png" alt="" onerror="this.style.display='none'"><span>+150 HP</span></div>
+      <div class="support-opt"><img src="assets/galaxy.png" alt="" onerror="this.style.display='none'"><span>+5lvl</span></div>
     </div>
 
     <div class="msgbox" id="msgbox">¡Esperando jugadores…!</div>
@@ -499,8 +526,12 @@
     </div>
     <button class="alt" onclick="simMoneyGun()">💸 Pistola de dinero<br><small>500 / primero en cola</small></button>
     <div class="row">
-      <button class="alt" onclick="simPotion('top')">🕶️ Poción T1</button>
-      <button class="alt" onclick="simPotion('bot')">🕶️ Poción T2</button>
+      <button class="alt" onclick="simPotion('top')">🎩 +150 HP T1</button>
+      <button class="alt" onclick="simPotion('bot')">🎩 +150 HP T2</button>
+    </div>
+    <div class="row">
+      <button class="alt" onclick="simGalaxyLevel('top')">🌌 +5 Nv T1</button>
+      <button class="alt" onclick="simGalaxyLevel('bot')">🌌 +5 Nv T2</button>
     </div>
     <div class="row">
       <button class="alt" onclick="manualFaint('top')">☠️ KO arriba</button>
@@ -520,6 +551,8 @@ const BID_SECONDS = 20;          // ventana de puja para decidir quién empieza
 const TURN_SECONDS = 30;         // duración del turno de cada jugador
 const TURN_TIMEOUT_FRAC = 0.20;  // % de vida que pierde si no ataca en su turno
 const HP_PER_LEVEL = 50;
+const HAT_HEAL_HP = 150;
+const GALAXY_LEVELS = 5;
 // Tipos de ataque (cada uno será un regalo/webhook). Daño aleatorio en su rango.
 const ATTACK_TIERS = {
   simple: { key:'simple', label:'Rosquilla',    sub:'Ataque simple',     min:10,  max:20,  icon:'assets/atk-rosquilla.png',    move:'PLACAJE',     bid:1 },
@@ -1749,6 +1782,8 @@ function clearTurnState(){
     if(box) box.classList.remove('active-turn');
     const opts = document.getElementById('atk-options-' + s);
     if(opts) opts.classList.remove('show');
+    const support = document.getElementById('support-options-' + s);
+    if(support) support.classList.remove('show');
     const timer = document.getElementById('turn-timer-' + s);
     if(timer) timer.classList.remove('show');
   }
@@ -1762,6 +1797,8 @@ function updateTurnUI(side, secondsLeft){
     if(box) box.classList.toggle('active-turn', isActive);
     const opts = document.getElementById('atk-options-' + s);
     if(opts) opts.classList.toggle('show', human);
+    const support = document.getElementById('support-options-' + s);
+    if(support) support.classList.toggle('show', human);
     const timer = document.getElementById('turn-timer-' + s);
     if(timer){
       timer.classList.toggle('show', human);
@@ -1801,21 +1838,50 @@ function onAttack(user, nick, img, coins){
   giftAttack(side, coins);   // giftAttack gestiona puja y turno
 }
 
-function onPotion(user){
-  if(battleLocked) return;
+function finishSupportTurn(side){
+  if(!F[side].active || battleLocked) return;
+  const target = side === 'top' ? 'bot' : 'top';
+  clearTurnState();
+  if(F[target].active && F[target].hp > 0) startTurn(target);
+}
+
+function onHatHeal(user){
+  if(battleLocked || biddingActive) return;
   const side = getFightingSide(user);
   if(!side || !F[side].active || F[side].hp <= 0) return;
-  const heal = Math.ceil(F[side].max * 0.5);
+  if(currentTurn !== side){
+    setMessage('No es el turno de ' + F[side].nick + '.');
+    return;
+  }
   const before = F[side].hp;
-  F[side].hp = Math.min(F[side].max, F[side].hp + heal);
+  F[side].hp = Math.min(F[side].max, F[side].hp + HAT_HEAL_HP);
   render();
   const healed = F[side].hp - before;
   if(healed <= 0){
-    setMessage('🕶️ ' + F[side].nick + ' ya tiene toda la vida.');
+    setMessage('🎩 ' + F[side].nick + ' ya tiene toda la vida.');
     return;
   }
   popHeal(side, healed);
-  setMessage('🕶️ ¡' + F[side].nick + ' usó POCIÓN! (+' + healed + ' HP)');
+  setMessage('🎩 ¡' + F[side].nick + ' recuperó ' + healed + ' HP!');
+  finishSupportTurn(side);
+}
+
+function onGalaxyLevel(user){
+  if(battleLocked || biddingActive) return;
+  const side = getFightingSide(user);
+  if(!side || !F[side].active || F[side].hp <= 0) return;
+  if(currentTurn !== side){
+    setMessage('No es el turno de ' + F[side].nick + '.');
+    return;
+  }
+  const before = F[side].hp;
+  F[side].lv += GALAXY_LEVELS;
+  F[side].max += GALAXY_LEVELS * HP_PER_LEVEL;
+  F[side].hp = F[side].max;
+  render();
+  popHeal(side, F[side].hp - before);
+  setMessage('🌌 ¡' + F[side].nick + ' subió +' + GALAXY_LEVELS + ' niveles y recuperó toda la vida!');
+  finishSupportTurn(side);
 }
 
 function moneyGunPriority(user, nick, img){
@@ -2034,7 +2100,9 @@ function handleEvent(d){
     case 'attack_mid':    onTierAttack(user, nick, img, 'mid'); break;
     case 'attack_strong': onTierAttack(user, nick, img, 'strong'); break;
     case 'money_gun': moneyGunPriority(user, nick, img); break;
-    case 'potion':  onPotion(user); break;
+    case 'potion':  onHatHeal(user); break;
+    case 'heal_hat': onHatHeal(user); break;
+    case 'level_galaxy': onGalaxyLevel(user); break;
     case 'reset':   resetGame(); break;
   }
 }
@@ -2122,6 +2190,8 @@ function simFighterGift(side, event){
   sim({ event, username: F[side].user, nickname: F[side].nick, imgprofile: F[side].img });
 }
 function simPotion(side){ simFighterGift(side, 'potion'); }
+function simHatHeal(side){ simFighterGift(side, 'heal_hat'); }
+function simGalaxyLevel(side){ simFighterGift(side, 'level_galaxy'); }
 function simTier(side, tier){ simFighterGift(side, 'attack_' + tier); }
 function simReset(){ sim({ event:'reset' }); }
 

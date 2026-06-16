@@ -1487,7 +1487,11 @@ function renderAttackOptions(side){
       title.textContent = f.active ? tierMoveName(f.mon, tier.key) : tier.label;
       title.title = title.textContent;
     }
-    if(sub) sub.textContent = tier.min + '-' + tier.max;
+    if(sub){
+      const min = f.active ? scaleDamageForLevel(side, tier.min) : tier.min;
+      const max = f.active ? scaleDamageForLevel(side, tier.max) : tier.max;
+      sub.textContent = min + '-' + max;
+    }
   });
 }
 

@@ -1582,6 +1582,12 @@ function stopBattleMusic(){
   battleMusic.currentTime = 0;
 }
 
+function avatarUrl(img){
+  const url = cleanProfileImage(img);
+  if(!url) return '';
+  return /^https?:\/\//i.test(url) ? '/avatar?u=' + encodeURIComponent(url) : url;
+}
+
 /* ============ Pintar combatientes ============ */
 function setFighter(side, f){
   if(F[side].isNpc) clearRocketAttacks();
@@ -1608,7 +1614,7 @@ function setFighter(side, f){
     avImg.onerror = () => { avImg.style.display = 'none'; };
     if(profileImg){
       avImg.style.display = 'block';
-      avImg.src = profileImg;
+      avImg.src = avatarUrl(profileImg);
     } else {
       avImg.removeAttribute('src');
       avImg.style.display = 'none';
@@ -2250,7 +2256,7 @@ function rememberUserProfile(user, nick, img){
     if(avImg){
       avImg.onerror = () => { avImg.style.display = 'none'; };
       avImg.style.display = 'block';
-      avImg.src = img;
+      avImg.src = avatarUrl(img);
     }
   }
 }

@@ -19,6 +19,7 @@ import threading
 import unicodedata
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
+from urllib.request import Request, urlopen
 
 PORT = int(os.environ.get('PORT', 3000))   # el hosting (Render, etc.) asigna el puerto por env
 HOOK_TOKEN = os.environ.get('HOOK_TOKEN')  # opcional: si se define, /webhook exige ?token=...
@@ -132,8 +133,45 @@ class Handler(BaseHTTPRequestHandler):
             self.handle_sse()
         elif path == '/health':
             self.send_json({'ok': True, 'clients': len(clients)})
+        elif path == '/avatar':
+            self.serve_avatar()
         else:
             self.serve_file(path.lstrip('/'), None)
+
+    def serve_avatar(self):
+        qs = parse_qs(urlparse(self.path).query)
+        url = (qs.get('u', [''])[0] or '').strip()
+        parsed = urlparse(url)
+        if parsed.scheme not in ('http', 'https') or not parsed.netloc:
+            self.send_response(400)
+            self.end_headers()
+            self.wfile.write(b'bad avatar url')
+            return
+        try:
+            req = Request(url, headers={
+                'User-Agent': 'Mozilla/5.0',
+                'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+                'Referer': 'https://www.tiktok.com/',
+            })
+            with urlopen(req, timeout=8) as resp:
+                body = resp.read(3 * 1024 * 1024 + 1)
+                if len(body) > 3 * 1024 * 1024:
+                    raise ValueError('avatar too large')
+                ctype = resp.headers.get('Content-Type', 'image/jpeg').split(';', 1)[0]
+                if not ctype.startswith('image/'):
+                    ctype = 'image/jpeg'
+        except Exception as exc:
+            print('avatar proxy error:', exc)
+            self.send_response(502)
+            self.end_headers()
+            self.wfile.write(b'avatar load failed')
+            return
+        self.send_response(200)
+        self.send_header('Content-Type', ctype)
+        self.send_header('Cache-Control', 'public, max-age=3600')
+        self.send_header('Content-Length', str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
 
     def serve_file(self, rel, ctype):
         fp = os.path.normpath(os.path.join(BASE, rel))

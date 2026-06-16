@@ -226,6 +226,12 @@
   .atk-opt img { width: 26px; height: 26px; object-fit: contain; image-rendering: pixelated; flex: 0 0 auto; }
   .atk-opt .ao-t { font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
   .atk-opt .ao-s { font-size: 9px; color: #8a8060; margin-left: auto; white-space: nowrap; padding-left: 8px; }
+  /* casilla del ataque elegido: se ilumina en verde un par de segundos */
+  .atk-opt.chosen {
+    background: linear-gradient(#6fe06f, #41bd41);
+    border-color: #1f7a2a; color: #0a3d12;
+    box-shadow: inset -2px -2px 0 #2e9a3a, 0 0 10px rgba(80,210,90,.8);
+  }
   /* La mochila del entrenador: bolsa de cuero con solapa y dos bolsillos */
   .support-options {
     position: absolute;
@@ -500,9 +506,9 @@
       </div>
     </div>
     <div class="attack-options top" id="atk-options-top">
-      <div class="atk-opt"><img src="assets/atk-rosquilla.png" alt="" onerror="this.style.display='none'"><span class="ao-t">Simple</span><span class="ao-s">10-20</span></div>
-      <div class="atk-opt"><img src="assets/atk-gg.png" alt="" onerror="this.style.display='none'"><span class="ao-t">Intermedio</span><span class="ao-s">20-100</span></div>
-      <div class="atk-opt"><img src="assets/atk-manifestando.png" alt="" onerror="this.style.display='none'"><span class="ao-t">Potente</span><span class="ao-s">100-300</span></div>
+      <div class="atk-opt"><span class="ao-t">Sencillo</span><span class="ao-s">1-30</span></div>
+      <div class="atk-opt"><span class="ao-t">Intermedio</span><span class="ao-s">30-100</span></div>
+      <div class="atk-opt"><span class="ao-t">Potente</span><span class="ao-s">&gt;100</span></div>
     </div>
     <div class="support-options top" id="support-options-top">
       <div class="support-opt"><img src="assets/hat-mustache.png" alt="" onerror="this.style.display='none'"><span class="it-txt">+150HP</span></div>
@@ -528,9 +534,9 @@
       </div>
     </div>
     <div class="attack-options bottom" id="atk-options-bot">
-      <div class="atk-opt"><img src="assets/atk-rosquilla.png" alt="" onerror="this.style.display='none'"><span class="ao-t">Simple</span><span class="ao-s">10-20</span></div>
-      <div class="atk-opt"><img src="assets/atk-gg.png" alt="" onerror="this.style.display='none'"><span class="ao-t">Intermedio</span><span class="ao-s">20-100</span></div>
-      <div class="atk-opt"><img src="assets/atk-manifestando.png" alt="" onerror="this.style.display='none'"><span class="ao-t">Potente</span><span class="ao-s">100-300</span></div>
+      <div class="atk-opt"><span class="ao-t">Sencillo</span><span class="ao-s">1-30</span></div>
+      <div class="atk-opt"><span class="ao-t">Intermedio</span><span class="ao-s">30-100</span></div>
+      <div class="atk-opt"><span class="ao-t">Potente</span><span class="ao-s">&gt;100</span></div>
     </div>
     <div class="support-options bottom" id="support-options-bot">
       <div class="support-opt"><img src="assets/hat-mustache.png" alt="" onerror="this.style.display='none'"><span class="it-txt">+150HP</span></div>
@@ -621,12 +627,19 @@ const HP_PER_LEVEL = 50;
 const LEVEL_DAMAGE_BONUS = 0.20; // cada nivel por encima de Nv1 suma +20% de daño
 const HAT_HEAL_HP = 150;
 const GALAXY_LEVELS = 5;
-// Tipos de ataque (cada uno será un regalo/webhook). Daño aleatorio en su rango.
+// Tipos de ataque. El daño = valor en monedas del regalo (constante, NO escala con nivel).
+// El tipo (sencillo/intermedio/potente) se decide por el valor del regalo (ver tierForCoins),
+// y solo sirve para mostrar el nombre del ataque del Pokémon en el mensaje.
 const ATTACK_TIERS = {
-  simple: { key:'simple', label:'Rosquilla',    sub:'Ataque simple',     min:10,  max:20,  icon:'assets/atk-rosquilla.png',    move:'PLACAJE',     bid:1 },
-  mid:    { key:'mid',    label:'Super GG',     sub:'Ataque intermedio', min:20,  max:100, icon:'assets/atk-gg.png',           move:'BOLA SOMBRA', bid:50 },
-  strong: { key:'strong', label:'Manifestando', sub:'Ataque potente',    min:100, max:300, icon:'assets/atk-manifestando.png', move:'HIPERRAYO',   bid:200 }
+  simple: { key:'simple', label:'Sencillo',   coins:30,  move:'PLACAJE',     bid:30 },
+  mid:    { key:'mid',    label:'Intermedio', coins:100, move:'BOLA SOMBRA', bid:100 },
+  strong: { key:'strong', label:'Potente',    coins:500, move:'HIPERRAYO',   bid:500 }
 };
+// Clasifica un regalo por su valor para elegir el nombre del ataque a mostrar.
+// 1-30 = sencillo, 30-100 = intermedio, >100 = potente.
+function tierForCoins(coins){
+  return coins <= 30 ? 'simple' : coins <= 100 ? 'mid' : 'strong';
+}
 // Nombres de ataques por Pokémon extraídos de Pokemon151_Ataques.pdf.
 const POKEMON_ATTACKS = {
   "Bulbasaur": {
@@ -1482,15 +1495,9 @@ function renderAttackOptions(side){
     const tier = ATTACK_TIERS[keys[i]];
     if(!tier) return;
     const title = opt.querySelector('.ao-t');
-    const sub = opt.querySelector('.ao-s');
     if(title){
       title.textContent = f.active ? tierMoveName(f.mon, tier.key) : tier.label;
       title.title = title.textContent;
-    }
-    if(sub){
-      const min = f.active ? scaleDamageForLevel(side, tier.min) : tier.min;
-      const max = f.active ? scaleDamageForLevel(side, tier.max) : tier.max;
-      sub.textContent = min + '-' + max;
     }
   });
 }
@@ -1541,6 +1548,7 @@ let bids = { top: 0, bot: 0 };
 let currentTurn = null;     // 'top' | 'bot' | null (turno activo)
 let turnTimer = null;
 let turnInterval = null;
+let turnResolving = false;  // true mientras se muestra el ataque en verde antes de pasar turno
 let battleMusic = null;
 let anyGiftEntryEnabled = false;
 let selectionNotices = [];
@@ -1712,13 +1720,33 @@ function isInQueue(user){
 
 function giftAttack(attacker, dmg, moveName){
   if(biddingActive){ registerBid(attacker, dmg); return; }
-  if(battleLocked || currentTurn !== attacker) return;
+  if(battleLocked || turnResolving || currentTurn !== attacker) return;
   const target = attacker === 'top' ? 'bot' : 'top';
   if(!F[target].active || F[target].hp <= 0) return;
   registerActivity(attacker);
-  doAttack(attacker, target, scaleDamageForLevel(attacker, dmg), moveName, () => {
-    if(F[target].hp > 0 && !battleLocked) startTurn(target);
+  // daño = valor del regalo (constante). El tipo de ataque (nombre) lo da el valor.
+  const tierKey = tierForCoins(dmg);
+  const move = moveName || tierMoveName(F[attacker].mon, tierKey);
+  // marca el turno como "resolviendo" y detiene la cuenta atrás (ya atacó)
+  turnResolving = true;
+  if(turnInterval){ clearInterval(turnInterval); turnInterval = null; }
+  highlightAttackOption(attacker, tierKey, true);   // casilla en verde
+  doAttack(attacker, target, dmg, move, () => {
+    // deja el ataque en verde un par de segundos antes de pasar el turno
+    setTimeout(() => {
+      highlightAttackOption(attacker, tierKey, false);
+      turnResolving = false;
+      if(F[target].hp > 0 && !battleLocked) startTurn(target);
+    }, 1600);
   });
+}
+
+// Resalta en verde la casilla del tipo de ataque usado (simple/mid/strong).
+function highlightAttackOption(side, tierKey, on){
+  const opts = document.getElementById('atk-options-' + side);
+  if(!opts) return;
+  const idx = { simple:0, mid:1, strong:2 }[tierKey];
+  opts.querySelectorAll('.atk-opt').forEach((b, i) => b.classList.toggle('chosen', !!on && i === idx));
 }
 
 function enterBattle(f){
@@ -1847,8 +1875,7 @@ function npcTakeTurn(side){
   if(currentTurn !== side || !F[side].active) return;
   const keys = Object.keys(ATTACK_TIERS);
   const tier = ATTACK_TIERS[keys[Math.floor(Math.random() * keys.length)]];
-  const dmg = tier.min + Math.floor(Math.random() * (tier.max - tier.min + 1));
-  giftAttack(side, dmg, tierMoveName(F[side].mon, tier.key));
+  giftAttack(side, tier.coins);
 }
 
 function clearTurnState(){
@@ -1857,11 +1884,12 @@ function clearTurnState(){
   turnTimer = null;
   turnInterval = null;
   currentTurn = null;
+  turnResolving = false;
   for(const s of ['top','bot']){
     const box = document.querySelector('.infobox.' + (s === 'bot' ? 'bottom' : 'top'));
     if(box) box.classList.remove('active-turn');
     const opts = document.getElementById('atk-options-' + s);
-    if(opts) opts.classList.remove('show');
+    if(opts){ opts.classList.remove('show'); opts.querySelectorAll('.atk-opt').forEach(b => b.classList.remove('chosen')); }
     const support = document.getElementById('support-options-' + s);
     if(support) support.classList.remove('show');
     const timer = document.getElementById('turn-timer-' + s);
@@ -1896,14 +1924,13 @@ function onTierAttack(user, nick, img, tierKey){
     if(anyGiftEntryEnabled) tryEnterFromGift(user, nick, img);
     return;
   }
-  if(biddingActive){ registerBid(side, tier.bid); return; }
+  if(biddingActive){ registerBid(side, tier.coins); return; }
   if(battleLocked) return;
   if(currentTurn !== side){
     setMessage('No es el turno de ' + F[side].nick + '.');
     return;
   }
-  const dmg = tier.min + Math.floor(Math.random() * (tier.max - tier.min + 1));
-  giftAttack(side, dmg, tierMoveName(F[side].mon, tier.key));
+  giftAttack(side, tier.coins);   // daño = valor del regalo; el tipo lo decide el valor
 }
 
 // Un regalo de un usuario solo cuenta si ese usuario es uno de los 2 luchadores.
@@ -1926,7 +1953,7 @@ function finishSupportTurn(side){
 }
 
 function onHatHeal(user){
-  if(battleLocked || biddingActive) return;
+  if(battleLocked || biddingActive || turnResolving) return;
   const side = getFightingSide(user);
   if(!side || !F[side].active || F[side].hp <= 0) return;
   if(currentTurn !== side){
@@ -1947,7 +1974,7 @@ function onHatHeal(user){
 }
 
 function onGalaxyLevel(user){
-  if(battleLocked || biddingActive) return;
+  if(battleLocked || biddingActive || turnResolving) return;
   const side = getFightingSide(user);
   if(!side || !F[side].active || F[side].hp <= 0) return;
   if(currentTurn !== side){

@@ -147,6 +147,36 @@
   }
   .anim-powerup::after  { animation: powerBurst 1.5s ease-out; }
   .anim-powerup::before { animation: powerBurst 1.5s ease-out .25s; }
+  .mon.charging img {
+    filter: brightness(1.35) drop-shadow(0 0 8px #fff56b) drop-shadow(0 0 18px #44d7ff);
+  }
+  .mon.charging::after {
+    opacity: .8;
+    animation: chargeAura .8s ease-out infinite;
+    background: radial-gradient(circle, transparent 26%, rgba(255,245,90,.9) 42%, rgba(84,215,255,.55) 62%, transparent 78%);
+  }
+  .mon.charging.charge-2 img {
+    filter: brightness(1.65) drop-shadow(0 0 12px #fff56b) drop-shadow(0 0 28px #44d7ff);
+  }
+  .mon.charging.charge-3 img {
+    filter: brightness(2) drop-shadow(0 0 16px #fff56b) drop-shadow(0 0 38px #44d7ff) drop-shadow(0 0 44px #ff8cf0);
+  }
+  @keyframes chargeAura {
+    from { transform: translate(-50%,-50%) scale(.8); opacity: .95; }
+    to   { transform: translate(-50%,-50%) scale(2.1); opacity: 0; }
+  }
+  .energy-wave {
+    position: absolute;
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #fff 0 20%, #fff56b 35%, #42d7ff 62%, transparent 76%);
+    box-shadow: 0 0 16px #fff, 0 0 34px #42d7ff, 0 0 52px #fff56b;
+    z-index: 8;
+    pointer-events: none;
+    transform: translate(-50%, -50%) scale(1);
+    transition: left .62s ease-in, top .62s ease-in, opacity .2s ease, transform .2s ease;
+  }
+  .energy-wave.dodged { opacity: 0; transform: translate(-50%, -78%) scale(.65); }
 
   /* ===== Cajas de info (nombre / nivel / HP) ===== */
   .infobox {
@@ -187,7 +217,7 @@
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .hp-num {
-    text-align: right; font-size: 10px; letter-spacing: 1px; white-space: nowrap;
+    display: none;
   }
 
   /* ===== Turno activo: borde amarillo + cuenta atrás + opciones ===== */
@@ -343,6 +373,43 @@
   .prep-banner b {
     margin-left: auto; min-width: 34px; text-align: center;
     font-size: 18px; color: #ffe070;
+  }
+  .charge-panel {
+    position: absolute;
+    left: 50%;
+    top: 52%;
+    transform: translate(-50%, -50%);
+    min-width: 330px;
+    max-width: 520px;
+    background: rgba(30, 46, 78, .94);
+    border: 4px solid #e8e8e8;
+    box-shadow: inset 0 0 0 3px #1d6d83, 0 6px 18px rgba(0,0,0,.28);
+    border-radius: 8px;
+    padding: 14px 18px;
+    color: #fff;
+    z-index: 9;
+    display: none;
+    text-shadow: 1px 1px 0 rgba(0,0,0,.45);
+  }
+  .charge-panel.show { display: block; }
+  .charge-title { font-size: 15px; margin-bottom: 10px; }
+  .charge-meter {
+    height: 18px;
+    background: #17212c;
+    border: 3px solid #111;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .charge-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #39d353, #fff56b, #ff9f1c);
+    transition: width .2s ease;
+  }
+  .charge-count {
+    margin-top: 8px;
+    font-size: 12px;
+    text-align: right;
   }
 
   .dmg-pop {
@@ -552,6 +619,11 @@
     </div>
 
     <div class="msgbox" id="msgbox">¡Esperando jugadores…!</div>
+    <div class="charge-panel" id="charge-panel">
+      <div class="charge-title" id="charge-title">Carga tu ataque</div>
+      <div class="charge-meter"><div class="charge-fill" id="charge-fill"></div></div>
+      <div class="charge-count" id="charge-count">0</div>
+    </div>
     <div class="prep-banner" id="prep-banner">
       <img src="assets/galaxy.png" alt="" onerror="this.style.display='none'" />
       <span>¡PUJA! El que mande el regalo más grande ataca primero.</span>
@@ -630,14 +702,13 @@ const SHOWDOWN = 'https://play.pokemonshowdown.com/sprites/';
 const ATTACKS = ['PLACAJE','ARAÑAZO','RAYO','LANZALLAMAS','HIDROBOMBA','PUÑO TRUENO','MEGAPATADA','GOLPE CUERPO'];
 const MONEY_GUN_COINS = 500;
 const BASE_HP = 10;
-const BID_SECONDS = 20;          // ventana de puja para decidir quién empieza
-const TURN_SECONDS = 30;         // duración del turno de cada jugador
+const TURN_SECONDS = 20;         // duración visible de cada fase de carga
 const HIDDEN_GRACE_SECONDS = 5;  // margen oculto para regalos que llegan en los últimos segundos
 const TURN_TIMEOUT_FRAC = 0.30;  // % de vida máxima que pierde si no ataca en su primer turno seguido
 const HP_PER_LEVEL = 50;
 const LEVEL_DAMAGE_BONUS = 0.20; // cada nivel por encima de Nv1 suma +20% de daño
-const HAT_HEAL_HP = 150;
-const GALAXY_LEVELS = 5;
+const POTION_COINS = 150;
+const GALAXY_COINS = 500;
 // Tipos de ataque. El daño = valor en monedas del regalo (constante, NO escala con nivel).
 // El tipo (sencillo/intermedio/potente) se decide por el valor del regalo (ver tierForCoins),
 // y solo sirve para mostrar el nombre del ataque del Pokémon en el mensaje.
@@ -1554,6 +1625,10 @@ let biddingActive = false;
 let biddingTimer = null;
 let biddingInterval = null;
 let bids = { top: 0, bot: 0 };
+let chargePhase = null;          // 'attack' | 'defense' | null
+let chargeTotal = 0;
+let chargeTarget = 0;
+let chargedAttackSide = null;
 let currentTurn = null;     // 'top' | 'bot' | null (turno activo)
 let turnTimer = null;
 let turnInterval = null;
@@ -1592,11 +1667,11 @@ function avatarUrl(img){
 /* ============ Pintar combatientes ============ */
 function setFighter(side, f){
   if(F[side].isNpc) clearRocketAttacks();
-  const max = f.max || BASE_HP;
+  const max = f.max || 100;
   const profileImg = cleanProfileImage(f.img);
   F[side] = {
     user:f.user, nick:f.nick, mon:f.mon, img:profileImg, sprite:f.sprite || (f.isNpc ? TEAM_ROCKET_SPRITES[side] : ''),
-    hp:f.hp || max, max, lv:f.lv || 1, active:true, lastAct:Date.now(), decay:{}, missedTurns:f.missedTurns || 0,
+    hp:f.hp || 100, max, lv:f.lv || 1, active:true, lastAct:Date.now(), decay:{}, missedTurns:f.missedTurns || 0,
     isNpc:!!f.isNpc
   };
   const el = document.getElementById('mon-' + side);
@@ -1651,7 +1726,7 @@ function clearFighter(side){
 function render(){
   for(const side of ['top','bot']){
     const f = F[side];
-    const pct = f.active ? Math.max(0, (f.hp / f.max) * 100) : 0;
+    const pct = f.active ? Math.max(0, Math.min(100, f.hp)) : 0;
     const fill = document.getElementById('hp-' + side);
     fill.style.width = pct + '%';
     fill.style.background = pct > 50
@@ -1660,7 +1735,7 @@ function render(){
     document.getElementById('name-' + side).textContent = f.active ? f.nick : 'Esperando…';
     document.getElementById('lv-' + side).textContent = 'Nv' + f.lv;
     const hpNum = document.getElementById('hpnum-' + side);
-    if(hpNum) hpNum.textContent = f.active ? (f.hp + '/' + f.max) : '';
+    if(hpNum) hpNum.textContent = '';
     const monName = document.getElementById('mon-name-' + side);
     if(monName) monName.textContent = f.active ? f.mon : '';
     renderAttackOptions(side);
@@ -1747,27 +1822,20 @@ function isInQueue(user){
 }
 
 function giftAttack(attacker, dmg, moveName){
-  if(biddingActive){ registerBid(attacker, dmg); return; }
-  if(battleLocked || turnResolving || currentTurn !== attacker) return;
-  const target = attacker === 'top' ? 'bot' : 'top';
-  if(!F[target].active || F[target].hp <= 0) return;
+  if(battleLocked || currentTurn !== attacker || !chargePhase) return;
   registerActivity(attacker);
-  // daño = valor del regalo (constante). El tipo de ataque (nombre) lo da el valor.
-  const tierKey = tierForCoins(dmg);
-  const move = moveName || tierMoveName(F[attacker].mon, tierKey);
-  // marca el turno como "resolviendo" y detiene la cuenta atrás (ya atacó)
-  turnResolving = true;
-  if(turnInterval){ clearInterval(turnInterval); turnInterval = null; }
-  if(turnTimer){ clearTimeout(turnTimer); turnTimer = null; }
-  highlightAttackOption(attacker, tierKey, true);   // casilla en verde
-  doAttack(attacker, target, dmg, move, () => {
-    // deja el ataque en verde un par de segundos antes de pasar el turno
-    setTimeout(() => {
-      highlightAttackOption(attacker, tierKey, false);
-      turnResolving = false;
-      if(F[target].hp > 0 && !battleLocked) startTurn(target);
-    }, 1600);
-  });
+  chargeTotal += dmg;
+  const move = moveName || tierMoveName(F[attacker].mon, tierForCoins(dmg));
+  pulseCharge(attacker);
+  updateChargePanel();
+  popBid(attacker, dmg);
+  setMessage('¡' + F[attacker].nick + ' carga +' + dmg + ' con ' + move + '! Total: ' + chargeTotal + (chargePhase === 'defense' ? '/' + chargeTarget : ''));
+  if(chargePhase === 'defense' && chargeTotal >= chargeTarget){
+    turnResolving = true;
+    if(turnInterval){ clearInterval(turnInterval); turnInterval = null; }
+    if(turnTimer){ clearTimeout(turnTimer); turnTimer = null; }
+    setTimeout(() => turnTimeout(attacker), 500);
+  }
 }
 
 // Resalta en verde la casilla del tipo de ataque usado (simple/mid/strong).
@@ -1802,49 +1870,23 @@ function activeBattleReady(){
 // Arranca la batalla (puja) cuando hay 2 luchadores y no hay ya puja/turno en curso.
 function maybeStartBattle(){
   if(!activeBattleReady() || biddingActive || currentTurn) return;
-  startBidding();
+  startChargeDuel();
 }
 
-/* ===== Fase de puja (20s): el regalo más grande empieza ===== */
-function startBidding(){
+function startChargeDuel(){
   clearTurnState();
   clearBidding();
-  biddingActive = true;
-  bids = { top: 0, bot: 0 };
   startBattleMusic();
-  let remaining = BID_SECONDS;
-  showBidBanner(remaining);
-  setMessage('¡' + BID_SECONDS + 's! El regalo más grande ataca primero ⚔️');
-  biddingInterval = setInterval(() => {
-    remaining -= 1;
-    showBidBanner(remaining);
-    if(remaining <= 0){
-      if(biddingInterval) clearInterval(biddingInterval);
-      biddingInterval = null;
-      hideBidBanner();
-    }
-  }, 1000);
-  biddingTimer = setTimeout(finishBidding, (BID_SECONDS + HIDDEN_GRACE_SECONDS) * 1000 + 150);
+  const first = Math.random() < 0.5 ? 'top' : 'bot';
+  startChargeTurn(first, 'attack', 0, null);
 }
 
 function registerBid(side, value){
-  if(!biddingActive || !F[side].active || F[side].isNpc) return;
-  if(value > bids[side]){
-    bids[side] = value;
-    setMessage('🎁 ¡' + F[side].nick + ' puja ' + value + ' para atacar primero!');
-  }
+  if(side === currentTurn) giftAttack(side, value);
 }
 
 function finishBidding(){
-  if(!biddingActive) return;
-  clearBidding();
-  if(!activeBattleReady()) return;
-  let first;
-  if(bids.top > bids.bot) first = 'top';
-  else if(bids.bot > bids.top) first = 'bot';
-  else first = Math.random() < 0.5 ? 'top' : 'bot';
-  setMessage('¡Comienza el combate! Empieza ' + F[first].nick + ' 🔥');
-  startTurn(first);
+  // La dinámica actual no usa puja inicial.
 }
 
 function clearBidding(){
@@ -1853,8 +1895,13 @@ function clearBidding(){
   biddingTimer = null;
   biddingInterval = null;
   biddingActive = false;
+  chargePhase = null;
+  chargeTotal = 0;
+  chargeTarget = 0;
+  chargedAttackSide = null;
   const banner = document.getElementById('prep-banner');
   if(banner) banner.classList.remove('show');
+  hideChargePanel();
 }
 
 function hideBidBanner(){
@@ -1872,17 +1919,22 @@ function showBidBanner(seconds){
 
 /* ===== Gestión de turnos ===== */
 function startTurn(side){
+  startChargeTurn(side, 'attack', 0, null);
+}
+
+function startChargeTurn(side, phase, target, attackSide){
   clearTurnState();
   if(!activeBattleReady() || !F[side].active){ return; }
   currentTurn = side;
+  chargePhase = phase;
+  chargeTotal = 0;
+  chargeTarget = target || 0;
+  chargedAttackSide = phase === 'defense' ? attackSide : side;
   let remaining = TURN_SECONDS;
   updateTurnUI(side, remaining);
-  if(F[side].isNpc){
-    setMessage('Turno de ' + F[side].nick + '…');
-    turnTimer = setTimeout(() => npcTakeTurn(side), 1800);
-    return;
-  }
-  setMessage('Turno de ' + F[side].nick + ' — ¡elige tu ataque!');
+  updateChargePanel();
+  setChargingAura(side);
+  setMessage((phase === 'attack' ? 'Carga tu ataque: ' : 'Carga tu defensa: ') + F[side].nick + '.');
   turnInterval = setInterval(() => {
     remaining -= 1;
     updateTurnUI(side, remaining);
@@ -1895,30 +1947,34 @@ function startTurn(side){
   turnTimer = setTimeout(() => turnTimeout(side), (TURN_SECONDS + HIDDEN_GRACE_SECONDS) * 1000 + 150);
 }
 
-// Se acaba el turno sin atacar: pierde vida y pasa el turno.
+// Se acaba la fase de carga.
 function turnTimeout(side){
+  const phase = chargePhase;
+  const total = chargeTotal;
+  const target = chargeTarget;
+  const attackSide = chargedAttackSide;
   clearTurnState();
   if(!F[side].active) return;
-  F[side].missedTurns = (F[side].missedTurns || 0) + 1;
-  const dmg = F[side].missedTurns >= 2 ? F[side].hp : Math.max(1, Math.round(F[side].max * TURN_TIMEOUT_FRAC));
-  F[side].hp = Math.max(0, F[side].hp - dmg);
-  const img = document.getElementById('mon-' + side);
-  img.classList.remove('anim-blink'); void img.offsetWidth; img.classList.add('anim-blink');
-  popDamage(side, dmg);
-  setMessage(F[side].missedTurns >= 2
-    ? '⏳ ¡' + F[side].nick + ' perdió dos turnos seguidos y se debilitó!'
-    : '⏳ ¡' + F[side].nick + ' no atacó a tiempo! Pierde ' + dmg + ' HP.');
-  render();
-  if(F[side].hp <= 0){ faintFighter(side, side === 'top' ? 'bot' : 'top'); return; }
-  startTurn(side === 'top' ? 'bot' : 'top');
-}
-
-// Team Rocket (NPC) juega su turno con un ataque al azar.
-function npcTakeTurn(side){
-  if(currentTurn !== side || !F[side].active) return;
-  const keys = Object.keys(ATTACK_TIERS);
-  const tier = ATTACK_TIERS[keys[Math.floor(Math.random() * keys.length)]];
-  giftAttack(side, tier.coins);
+  const other = side === 'top' ? 'bot' : 'top';
+  if(phase === 'attack'){
+    if(total <= 0){
+      setMessage('⏳ ' + F[side].nick + ' no cargó ataque. Turno de ' + F[other].nick + '.');
+      startChargeTurn(other, 'attack', 0, null);
+      return;
+    }
+    chipVisualHealth(other);
+    setMessage('⚡ ' + F[side].nick + ' lanza un ataque de ' + total + '. ¡' + F[other].nick + ' debe defender!');
+    startChargeTurn(other, 'defense', total, side);
+    return;
+  }
+  if(phase === 'defense' && total >= target){
+    chipVisualHealth(attackSide);
+    launchEnergy(attackSide, side, true, () => startChargeTurn(side, 'attack', 0, null));
+    setMessage('✨ ' + F[side].nick + ' esquiva el ataque con ' + total + '/' + target + '.');
+    return;
+  }
+  launchEnergy(attackSide, side, false, () => faintFighter(side, attackSide));
+  setMessage('💥 ' + F[side].nick + ' no llegó a ' + target + ' y recibe el ataque.');
 }
 
 function clearTurnState(){
@@ -1928,6 +1984,8 @@ function clearTurnState(){
   turnInterval = null;
   currentTurn = null;
   turnResolving = false;
+  clearChargingAura();
+  hideChargePanel();
   for(const s of ['top','bot']){
     const box = document.querySelector('.infobox.' + (s === 'bot' ? 'bottom' : 'top'));
     if(box) box.classList.remove('active-turn');
@@ -1947,15 +2005,100 @@ function updateTurnUI(side, secondsLeft){
     const box = document.querySelector('.infobox.' + (s === 'bot' ? 'bottom' : 'top'));
     if(box) box.classList.toggle('active-turn', isActive);
     const opts = document.getElementById('atk-options-' + s);
-    if(opts) opts.classList.toggle('show', human);
+    if(opts) opts.classList.remove('show');
     const support = document.getElementById('support-options-' + s);
-    if(support) support.classList.toggle('show', human);
+    if(support) support.classList.remove('show');
     const timer = document.getElementById('turn-timer-' + s);
     if(timer){
       timer.classList.toggle('show', human);
       timer.textContent = Math.max(0, secondsLeft);
     }
   }
+}
+
+function updateChargePanel(){
+  const panel = document.getElementById('charge-panel');
+  if(!panel || !currentTurn || !chargePhase) return;
+  const title = document.getElementById('charge-title');
+  const fill = document.getElementById('charge-fill');
+  const count = document.getElementById('charge-count');
+  const isDefense = chargePhase === 'defense';
+  const target = isDefense ? chargeTarget : Math.max(100, chargeTotal || 100);
+  const pct = isDefense ? Math.min(100, (chargeTotal / Math.max(1, chargeTarget)) * 100) : Math.min(100, chargeTotal);
+  title.textContent = isDefense ? 'Carga tu defensa' : 'Carga tu ataque';
+  if(fill) fill.style.width = pct + '%';
+  if(count) count.textContent = isDefense ? (chargeTotal + '/' + chargeTarget) : String(chargeTotal);
+  panel.classList.add('show');
+}
+
+function hideChargePanel(){
+  const panel = document.getElementById('charge-panel');
+  if(panel) panel.classList.remove('show');
+}
+
+function clearChargingAura(){
+  for(const side of ['top','bot']){
+    const mon = document.getElementById('mon-' + side);
+    if(mon) mon.classList.remove('charging','charge-2','charge-3');
+  }
+}
+
+function setChargingAura(side){
+  clearChargingAura();
+  const mon = document.getElementById('mon-' + side);
+  if(mon) mon.classList.add('charging');
+}
+
+function pulseCharge(side){
+  const mon = document.getElementById('mon-' + side);
+  if(!mon) return;
+  mon.classList.add('charging');
+  const ratio = chargePhase === 'defense'
+    ? chargeTotal / Math.max(1, chargeTarget)
+    : chargeTotal / 100;
+  mon.classList.toggle('charge-2', ratio >= .5);
+  mon.classList.toggle('charge-3', ratio >= 1);
+}
+
+function chipVisualHealth(side){
+  if(!F[side].active) return;
+  F[side].hp = Math.max(8, F[side].hp - 10);
+  render();
+}
+
+function launchEnergy(fromSide, toSide, dodged, onDone){
+  if(!fromSide || !toSide || !F[fromSide]?.active || !F[toSide]?.active){
+    if(onDone) onDone();
+    return;
+  }
+  const battle = document.getElementById('battle');
+  const from = document.getElementById('mon-' + fromSide).getBoundingClientRect();
+  const to = document.getElementById('mon-' + toSide).getBoundingClientRect();
+  const b = battle.getBoundingClientRect();
+  const wave = document.createElement('div');
+  wave.className = 'energy-wave';
+  wave.style.left = (from.left - b.left + from.width / 2) + 'px';
+  wave.style.top = (from.top - b.top + from.height / 2) + 'px';
+  battle.appendChild(wave);
+  requestAnimationFrame(() => {
+    wave.style.left = (to.left - b.left + to.width / 2) + 'px';
+    wave.style.top = (to.top - b.top + to.height / 2) + 'px';
+  });
+  setTimeout(() => {
+    if(dodged){
+      const tImg = document.getElementById('mon-' + toSide);
+      tImg.classList.remove('anim-lunge'); void tImg.offsetWidth; tImg.classList.add('anim-lunge');
+      wave.classList.add('dodged');
+    } else {
+      const tImg = document.getElementById('mon-' + toSide);
+      tImg.classList.remove('anim-shake','anim-blink'); void tImg.offsetWidth;
+      tImg.classList.add('anim-shake','anim-blink');
+    }
+  }, 640);
+  setTimeout(() => {
+    wave.remove();
+    if(onDone) onDone();
+  }, 980);
 }
 
 // Ataque de un tipo concreto (rosquilla/GG/manifestando) desde su webhook.
@@ -1988,13 +2131,6 @@ function onAttack(user, nick, img, coins){
   giftAttack(side, coins);   // giftAttack gestiona puja y turno
 }
 
-function finishSupportTurn(side){
-  if(!F[side].active || battleLocked) return;
-  const target = side === 'top' ? 'bot' : 'top';
-  clearTurnState();
-  if(F[target].active && F[target].hp > 0) startTurn(target);
-}
-
 function onHatHeal(user){
   if(battleLocked || biddingActive || turnResolving) return;
   const side = getFightingSide(user);
@@ -2003,17 +2139,7 @@ function onHatHeal(user){
     setMessage('No es el turno de ' + F[side].nick + '.');
     return;
   }
-  const before = F[side].hp;
-  F[side].hp = Math.min(F[side].max, F[side].hp + HAT_HEAL_HP);
-  render();
-  const healed = F[side].hp - before;
-  if(healed <= 0){
-    setMessage('🎩 ' + F[side].nick + ' ya tiene toda la vida.');
-    return;
-  }
-  popHeal(side, healed);
-  setMessage('🎩 ¡' + F[side].nick + ' recuperó ' + healed + ' HP!');
-  finishSupportTurn(side);
+  giftAttack(side, POTION_COINS, 'Poción');
 }
 
 function onGalaxyLevel(user){
@@ -2024,16 +2150,7 @@ function onGalaxyLevel(user){
     setMessage('No es el turno de ' + F[side].nick + '.');
     return;
   }
-  const before = F[side].hp;
-  F[side].lv += GALAXY_LEVELS;
-  F[side].max += GALAXY_LEVELS * HP_PER_LEVEL;
-  F[side].hp = F[side].max;
-  render();
-  const mon = document.getElementById('mon-' + side);
-  mon.classList.remove('anim-powerup'); void mon.offsetWidth; mon.classList.add('anim-powerup');
-  popHeal(side, F[side].hp - before);
-  setMessage('🌌 ¡' + F[side].nick + ' subió +' + GALAXY_LEVELS + ' niveles y recuperó toda la vida!');
-  finishSupportTurn(side);
+  giftAttack(side, GALAXY_COINS, 'Galaxia');
 }
 
 function moneyGunPriority(user, nick, img){
@@ -2375,6 +2492,20 @@ function popHeal(side, hp){
   const pop = document.createElement('div');
   pop.className = 'dmg-pop heal';
   pop.textContent = '+' + hp;
+  pop.style.left = (r.left - b.left + 60) + 'px';
+  pop.style.top  = (r.top  - b.top  + 40) + 'px';
+  document.getElementById('battle').appendChild(pop);
+  setTimeout(() => pop.remove(), 1000);
+}
+
+function popBid(side, amount){
+  if(amount <= 0) return;
+  const ref = document.getElementById('mon-' + side);
+  const b = document.getElementById('battle').getBoundingClientRect();
+  const r = ref.getBoundingClientRect();
+  const pop = document.createElement('div');
+  pop.className = 'dmg-pop heal';
+  pop.textContent = '+' + amount;
   pop.style.left = (r.left - b.left + 60) + 'px';
   pop.style.top  = (r.top  - b.top  + 40) + 'px';
   document.getElementById('battle').appendChild(pop);

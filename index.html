@@ -393,7 +393,7 @@
     border: 3px solid #e8e8e8;
     box-shadow: inset 0 0 0 2px #1d6d83, 0 5px 14px rgba(0,0,0,.24);
     border-radius: 8px;
-    padding: 10px 12px;
+    padding: 9px 12px 8px;
     color: #fff;
     z-index: 9;
     display: none;
@@ -401,9 +401,22 @@
     font-family: 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif;
     font-weight: 800;
     letter-spacing: .2px;
+    transition: background .25s ease, border-color .25s ease, box-shadow .25s ease;
   }
   .charge-panel.show { display: block; }
-  .charge-title { font-size: 18px; line-height: 1.05; margin-bottom: 8px; }
+  .charge-panel.attack-mode {
+    background: rgba(69, 31, 46, .95);
+    border-color: #ff7b8d;
+    box-shadow: inset 0 0 0 2px #9d263d, 0 0 18px rgba(255,83,107,.38), 0 5px 14px rgba(0,0,0,.24);
+  }
+  .charge-panel.defense-mode {
+    background: rgba(25, 48, 82, .95);
+    border-color: #6fc3ff;
+    box-shadow: inset 0 0 0 2px #1b6fa8, 0 0 18px rgba(74,172,255,.42), 0 5px 14px rgba(0,0,0,.24);
+  }
+  .charge-title { font-size: 18px; line-height: 1.05; margin-bottom: 6px; }
+  .charge-word.attack-word { color: #ff5c73; text-shadow: 0 0 8px rgba(255,92,115,.8), 1px 1px 0 rgba(0,0,0,.55); }
+  .charge-word.defense-word { color: #6fc3ff; text-shadow: 0 0 8px rgba(111,195,255,.8), 1px 1px 0 rgba(0,0,0,.55); }
   .charge-user { color: #5cff8d; font-size: 20px; text-shadow: 0 0 8px rgba(92,255,141,.85), 1px 1px 0 rgba(0,0,0,.5); }
   .charge-big-timer {
     display: none;
@@ -438,14 +451,17 @@
     background: linear-gradient(90deg, #39d353, #fff56b, #ff9f1c);
     transition: width .2s ease;
   }
+  .charge-panel.attack-mode .charge-fill { background: linear-gradient(90deg, #ff4d6d, #ffb703, #fff56b); }
+  .charge-panel.defense-mode .charge-fill { background: linear-gradient(90deg, #358cff, #7de3ff, #c6fbff); }
   .charge-count {
-    margin-top: 5px;
+    margin-top: 2px;
     font-size: 13px;
     text-align: right;
   }
   .charge-help {
-    margin-top: 6px;
-    font-size: 12px;
+    margin-top: 3px;
+    font-size: 11px;
+    line-height: 1.1;
     color: #ffeaa0;
   }
 
@@ -660,8 +676,8 @@
     <div class="charge-panel" id="charge-panel">
       <div class="charge-title" id="charge-title">Carga tu ataque</div>
       <div class="charge-meter"><div class="charge-fill" id="charge-fill"></div></div>
-      <div class="charge-count" id="charge-count">0</div>
       <div class="charge-help" id="charge-help">🪙 1 moneda = 1 punto de ataque</div>
+      <div class="charge-count" id="charge-count">0</div>
     </div>
     <div class="prep-banner" id="prep-banner">
       <img src="assets/galaxy.png" alt="" onerror="this.style.display='none'" />
@@ -2094,16 +2110,20 @@ function updateChargePanel(){
   const isDefense = chargePhase === 'defense';
   const target = isDefense ? chargeTarget : Math.max(100, chargeTotal || 100);
   const pct = isDefense ? Math.min(100, (chargeTotal / Math.max(1, chargeTarget)) * 100) : Math.min(100, chargeTotal);
-  title.innerHTML = (isDefense ? 'Carga tu defensa ' : 'Carga tu ataque ') + '<span class="charge-user">' + escapeHtml(F[currentTurn].nick) + '</span>';
+  const actionWord = isDefense ? 'defensa' : 'ataque';
+  const wordClass = isDefense ? 'defense-word' : 'attack-word';
+  title.innerHTML = 'Carga tu <span class="charge-word ' + wordClass + '">' + actionWord + '</span> <span class="charge-user">' + escapeHtml(F[currentTurn].nick) + '</span>';
   if(fill) fill.style.width = pct + '%';
   if(count) count.textContent = isDefense ? (chargeTotal + '/' + chargeTarget) : String(chargeTotal);
   if(help) help.textContent = isDefense ? '🪙 1 moneda = 1 punto de defensa' : '🪙 1 moneda = 1 punto de ataque';
+  panel.classList.toggle('defense-mode', isDefense);
+  panel.classList.toggle('attack-mode', !isDefense);
   panel.classList.add('show');
 }
 
 function hideChargePanel(){
   const panel = document.getElementById('charge-panel');
-  if(panel) panel.classList.remove('show');
+  if(panel) panel.classList.remove('show','attack-mode','defense-mode');
   const big = document.getElementById('charge-big-timer');
   if(big) big.classList.remove('show');
 }

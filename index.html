@@ -5,8 +5,8 @@
   por SSE. Flujo del juego:
     - El usuario escribe un Pokémon en el chat  -> se le asigna ese Pokémon (con su foto real)
     - 🦦 Capibara   -> entra a un hueco libre del combate, o a la cola si están llenos.
-      Si ya está luchando, la capibara ataca con 30 de daño.
-    - 🎁 Otros regalos de los 2 luchadores -> ataque (monedas = daño). Ganar sube de nivel (+50 HP) y cura al 100%.
+      Si ya está luchando, la capibara suma 30 puntos de carga en su fase activa.
+    - 🎁 Los regalos de los luchadores cargan ataque o defensa. Ganar sube de nivel y cura al 100%.
     - El control manual permite debilitar a cualquiera de los dos luchadores.
 
   El panel de la derecha es un SIMULADOR de TikFinity (postea a /webhook igual que
@@ -305,7 +305,7 @@
   }
   .support-opt img { width: 21px; height: 21px; object-fit: contain; image-rendering: pixelated; flex: 0 0 auto; }
   .support-opt span { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 0 rgba(255,255,255,.6); }
-  /* textos de la mochila (+150HP, +5lvl) en tipografía clara y compacta (no Press Start 2P) */
+  /* textos de la mochila en tipografía clara y compacta (no Press Start 2P) */
   .support-opt .it-txt {
     font-family: 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif;
     font-weight: 800; font-size: 12px; letter-spacing: .2px;
@@ -393,6 +393,26 @@
   }
   .charge-panel.show { display: block; }
   .charge-title { font-size: 15px; margin-bottom: 10px; }
+  .charge-big-timer {
+    display: none;
+    position: absolute;
+    left: 50%;
+    top: calc(52% - 112px);
+    transform: translateX(-50%);
+    z-index: 10;
+    min-width: 86px;
+    text-align: center;
+    padding: 8px 14px;
+    border-radius: 14px;
+    border: 4px solid #fff;
+    background: #f43f5e;
+    color: #fff;
+    font-size: 28px;
+    line-height: 1;
+    box-shadow: 0 0 18px rgba(244,63,94,.75), inset 0 -4px 0 rgba(0,0,0,.18);
+    text-shadow: 2px 2px 0 rgba(0,0,0,.35);
+  }
+  .charge-big-timer.show { display: block; }
   .charge-meter {
     height: 18px;
     background: #17212c;
@@ -410,6 +430,11 @@
     margin-top: 8px;
     font-size: 12px;
     text-align: right;
+  }
+  .charge-help {
+    margin-top: 9px;
+    font-size: 10px;
+    color: #ffeaa0;
   }
 
   .dmg-pop {
@@ -586,8 +611,8 @@
       <div class="atk-opt"><span class="ao-t">Potente</span><span class="ao-s">&gt;100</span></div>
     </div>
     <div class="support-options top" id="support-options-top">
-      <div class="support-opt"><img src="assets/hat-mustache.png" alt="" onerror="this.style.display='none'"><span class="it-txt">+150HP</span></div>
-      <div class="support-opt"><img src="assets/galaxy.png" alt="" onerror="this.style.display='none'"><span class="it-txt">+5lvl</span></div>
+      <div class="support-opt"><img src="assets/hat-mustache.png" alt="" onerror="this.style.display='none'"><span class="it-txt">150</span></div>
+      <div class="support-opt"><img src="assets/galaxy.png" alt="" onerror="this.style.display='none'"><span class="it-txt">500</span></div>
     </div>
 
     <!-- Jugador (slot inferior) -->
@@ -614,15 +639,17 @@
       <div class="atk-opt"><span class="ao-t">Potente</span><span class="ao-s">&gt;100</span></div>
     </div>
     <div class="support-options bottom" id="support-options-bot">
-      <div class="support-opt"><img src="assets/hat-mustache.png" alt="" onerror="this.style.display='none'"><span class="it-txt">+150HP</span></div>
-      <div class="support-opt"><img src="assets/galaxy.png" alt="" onerror="this.style.display='none'"><span class="it-txt">+5lvl</span></div>
+      <div class="support-opt"><img src="assets/hat-mustache.png" alt="" onerror="this.style.display='none'"><span class="it-txt">150</span></div>
+      <div class="support-opt"><img src="assets/galaxy.png" alt="" onerror="this.style.display='none'"><span class="it-txt">500</span></div>
     </div>
 
     <div class="msgbox" id="msgbox">¡Esperando jugadores…!</div>
+    <div class="charge-big-timer" id="charge-big-timer">20</div>
     <div class="charge-panel" id="charge-panel">
       <div class="charge-title" id="charge-title">Carga tu ataque</div>
       <div class="charge-meter"><div class="charge-fill" id="charge-fill"></div></div>
       <div class="charge-count" id="charge-count">0</div>
+      <div class="charge-help" id="charge-help">🪙 1 moneda = 1 punto de ataque</div>
     </div>
     <div class="prep-banner" id="prep-banner">
       <img src="assets/galaxy.png" alt="" onerror="this.style.display='none'" />
@@ -679,12 +706,12 @@
     </div>
     <button class="alt" onclick="simMoneyGun()">💸 Pistola de dinero<br><small>500 / primero en cola</small></button>
     <div class="row">
-      <button class="alt" onclick="simPotion('top')">🎩 +150 HP T1</button>
-      <button class="alt" onclick="simPotion('bot')">🎩 +150 HP T2</button>
+      <button class="alt" onclick="simPotion('top')">🎩 150 T1</button>
+      <button class="alt" onclick="simPotion('bot')">🎩 150 T2</button>
     </div>
     <div class="row">
-      <button class="alt" onclick="simGalaxyLevel('top')">🌌 +5 Nv T1</button>
-      <button class="alt" onclick="simGalaxyLevel('bot')">🌌 +5 Nv T2</button>
+      <button class="alt" onclick="simGalaxyLevel('top')">🌌 500 T1</button>
+      <button class="alt" onclick="simGalaxyLevel('bot')">🌌 500 T2</button>
     </div>
     <div class="row">
       <button class="alt" onclick="manualFaint('top')">☠️ KO arriba</button>
@@ -704,14 +731,10 @@ const MONEY_GUN_COINS = 500;
 const BASE_HP = 10;
 const TURN_SECONDS = 20;         // duración visible de cada fase de carga
 const HIDDEN_GRACE_SECONDS = 5;  // margen oculto para regalos que llegan en los últimos segundos
-const TURN_TIMEOUT_FRAC = 0.30;  // % de vida máxima que pierde si no ataca en su primer turno seguido
 const HP_PER_LEVEL = 50;
-const LEVEL_DAMAGE_BONUS = 0.20; // cada nivel por encima de Nv1 suma +20% de daño
 const POTION_COINS = 150;
 const GALAXY_COINS = 500;
-// Tipos de ataque. El daño = valor en monedas del regalo (constante, NO escala con nivel).
-// El tipo (sencillo/intermedio/potente) se decide por el valor del regalo (ver tierForCoins),
-// y solo sirve para mostrar el nombre del ataque del Pokémon en el mensaje.
+// Tipos de carga. El valor del regalo suma puntos; el tipo decide el nombre del movimiento que se muestra.
 const ATTACK_TIERS = {
   simple: { key:'simple', label:'Sencillo',   coins:30,  move:'PLACAJE',     bid:30 },
   mid:    { key:'mid',    label:'Intermedio', coins:100, move:'BOLA SOMBRA', bid:100 },
@@ -1658,6 +1681,15 @@ function stopBattleMusic(){
   battleMusic.currentTime = 0;
 }
 
+function maxHpForLevel(level){
+  const lv = Math.max(1, level || 1);
+  if(lv === 1) return 10;
+  if(lv === 2) return 20;
+  if(lv === 3) return 40;
+  if(lv === 4) return 50;
+  return 50 + ((lv - 4) * HP_PER_LEVEL);
+}
+
 function avatarUrl(img){
   const url = cleanProfileImage(img);
   if(!url) return '';
@@ -1667,11 +1699,12 @@ function avatarUrl(img){
 /* ============ Pintar combatientes ============ */
 function setFighter(side, f){
   if(F[side].isNpc) clearRocketAttacks();
-  const max = f.max || 100;
+  const lv = f.lv || 1;
+  const max = f.max || maxHpForLevel(lv);
   const profileImg = cleanProfileImage(f.img);
   F[side] = {
     user:f.user, nick:f.nick, mon:f.mon, img:profileImg, sprite:f.sprite || (f.isNpc ? TEAM_ROCKET_SPRITES[side] : ''),
-    hp:f.hp || 100, max, lv:f.lv || 1, active:true, lastAct:Date.now(), decay:{}, missedTurns:f.missedTurns || 0,
+    hp:f.hp || max, max, lv, active:true, lastAct:Date.now(), decay:{}, missedTurns:f.missedTurns || 0,
     isNpc:!!f.isNpc
   };
   const el = document.getElementById('mon-' + side);
@@ -1726,7 +1759,7 @@ function clearFighter(side){
 function render(){
   for(const side of ['top','bot']){
     const f = F[side];
-    const pct = f.active ? Math.max(0, Math.min(100, f.hp)) : 0;
+    const pct = f.active ? Math.max(0, Math.min(100, (f.hp / f.max) * 100)) : 0;
     const fill = document.getElementById('hp-' + side);
     fill.style.width = pct + '%';
     fill.style.background = pct > 50
@@ -1823,7 +1856,9 @@ function isInQueue(user){
 
 function giftAttack(attacker, dmg, moveName){
   if(battleLocked || currentTurn !== attacker || !chargePhase) return;
-  registerActivity(attacker);
+  F[attacker].lastAct = Date.now();
+  F[attacker].decay = {};
+  if(chargePhase === 'attack') F[attacker].missedTurns = 0;
   chargeTotal += dmg;
   const move = moveName || tierMoveName(F[attacker].mon, tierForCoins(dmg));
   pulseCharge(attacker);
@@ -1934,7 +1969,7 @@ function startChargeTurn(side, phase, target, attackSide){
   updateTurnUI(side, remaining);
   updateChargePanel();
   setChargingAura(side);
-  setMessage((phase === 'attack' ? 'Carga tu ataque: ' : 'Carga tu defensa: ') + F[side].nick + '.');
+  setMessage((phase === 'attack' ? 'Carga tu ataque ' : 'Carga tu defensa ') + F[side].nick + '.');
   turnInterval = setInterval(() => {
     remaining -= 1;
     updateTurnUI(side, remaining);
@@ -1958,23 +1993,39 @@ function turnTimeout(side){
   const other = side === 'top' ? 'bot' : 'top';
   if(phase === 'attack'){
     if(total <= 0){
-      setMessage('⏳ ' + F[side].nick + ' no cargó ataque. Turno de ' + F[other].nick + '.');
+      F[side].missedTurns = (F[side].missedTurns || 0) + 1;
+      const penalty = F[side].missedTurns >= 2 ? F[side].hp : Math.max(1, Math.ceil(F[side].max / 2));
+      F[side].hp = Math.max(0, F[side].hp - penalty);
+      render();
+      if(F[side].hp <= 0){
+        setMessage('⏳ ' + F[side].nick + ' no cargó ataque dos turnos seguidos y se debilitó.');
+        faintFighter(side, other);
+        return;
+      }
+      setMessage('⏳ ' + F[side].nick + ' no cargó ataque y pierde ' + penalty + ' HP.');
       startChargeTurn(other, 'attack', 0, null);
       return;
     }
-    chipVisualHealth(other);
+    F[side].missedTurns = 0;
     setMessage('⚡ ' + F[side].nick + ' lanza un ataque de ' + total + '. ¡' + F[other].nick + ' debe defender!');
     startChargeTurn(other, 'defense', total, side);
     return;
   }
   if(phase === 'defense' && total >= target){
-    chipVisualHealth(attackSide);
     launchEnergy(attackSide, side, true, () => startChargeTurn(side, 'attack', 0, null));
     setMessage('✨ ' + F[side].nick + ' esquiva el ataque con ' + total + '/' + target + '.');
     return;
   }
-  launchEnergy(attackSide, side, false, () => faintFighter(side, attackSide));
-  setMessage('💥 ' + F[side].nick + ' no llegó a ' + target + ' y recibe el ataque.');
+  const damage = Math.max(1, target - total);
+  F[side].hp = Math.max(0, F[side].hp - damage);
+  render();
+  if(F[side].hp <= 0){
+    launchEnergy(attackSide, side, false, () => faintFighter(side, attackSide));
+    setMessage('💥 ' + F[side].nick + ' recibe ' + damage + ' de daño y cae.');
+  } else {
+    launchEnergy(attackSide, side, false, () => startChargeTurn(side, 'attack', 0, null));
+    setMessage('💥 ' + F[side].nick + ' recibe ' + damage + ' de daño. Ahora carga su ataque.');
+  }
 }
 
 function clearTurnState(){
@@ -2010,9 +2061,14 @@ function updateTurnUI(side, secondsLeft){
     if(support) support.classList.remove('show');
     const timer = document.getElementById('turn-timer-' + s);
     if(timer){
-      timer.classList.toggle('show', human);
+      timer.classList.remove('show');
       timer.textContent = Math.max(0, secondsLeft);
     }
+  }
+  const big = document.getElementById('charge-big-timer');
+  if(big){
+    big.textContent = Math.max(0, secondsLeft);
+    big.classList.toggle('show', !!currentTurn && !!chargePhase);
   }
 }
 
@@ -2022,18 +2078,22 @@ function updateChargePanel(){
   const title = document.getElementById('charge-title');
   const fill = document.getElementById('charge-fill');
   const count = document.getElementById('charge-count');
+  const help = document.getElementById('charge-help');
   const isDefense = chargePhase === 'defense';
   const target = isDefense ? chargeTarget : Math.max(100, chargeTotal || 100);
   const pct = isDefense ? Math.min(100, (chargeTotal / Math.max(1, chargeTarget)) * 100) : Math.min(100, chargeTotal);
-  title.textContent = isDefense ? 'Carga tu defensa' : 'Carga tu ataque';
+  title.textContent = (isDefense ? 'Carga tu defensa ' : 'Carga tu ataque ') + F[currentTurn].nick;
   if(fill) fill.style.width = pct + '%';
   if(count) count.textContent = isDefense ? (chargeTotal + '/' + chargeTarget) : String(chargeTotal);
+  if(help) help.textContent = isDefense ? '🪙 1 moneda = 1 punto de defensa' : '🪙 1 moneda = 1 punto de ataque';
   panel.classList.add('show');
 }
 
 function hideChargePanel(){
   const panel = document.getElementById('charge-panel');
   if(panel) panel.classList.remove('show');
+  const big = document.getElementById('charge-big-timer');
+  if(big) big.classList.remove('show');
 }
 
 function clearChargingAura(){
@@ -2058,12 +2118,6 @@ function pulseCharge(side){
     : chargeTotal / 100;
   mon.classList.toggle('charge-2', ratio >= .5);
   mon.classList.toggle('charge-3', ratio >= 1);
-}
-
-function chipVisualHealth(side){
-  if(!F[side].active) return;
-  F[side].hp = Math.max(8, F[side].hp - 10);
-  render();
 }
 
 function launchEnergy(fromSide, toSide, dodged, onDone){
@@ -2116,11 +2170,11 @@ function onTierAttack(user, nick, img, tierKey){
     setMessage('No es el turno de ' + F[side].nick + '.');
     return;
   }
-  giftAttack(side, tier.coins);   // daño = valor del regalo; el tipo lo decide el valor
+  giftAttack(side, tier.coins);
 }
 
 // Un regalo de un usuario solo cuenta si ese usuario es uno de los 2 luchadores.
-// Su regalo daña al rival. coins = daño.
+// coins = puntos de carga.
 function onAttack(user, nick, img, coins){
   if(coins <= 0) return;
   const side = getFightingSide(user);
@@ -2204,7 +2258,7 @@ function teamRocketFighter(level){
     nick: 'TEAM ROCKET',
     mon: 'TEAM ROCKET',
     lv: level || 1,
-    max: BASE_HP + ((Math.max(1, level || 1) - 1) * HP_PER_LEVEL),
+    max: maxHpForLevel(level || 1),
     isNpc: true
   };
 }
@@ -2236,43 +2290,17 @@ function clearRocketAttacks(){
   rocketAttackTimers = [];
 }
 
-function scaleDamageForLevel(side, baseDmg){
-  const lv = Math.max(1, F[side]?.lv || 1);
-  const mult = 1 + ((lv - 1) * LEVEL_DAMAGE_BONUS);
-  return Math.max(1, Math.round(baseDmg * mult));
-}
-
-function doAttack(attacker, target, dmg, moveName, onDone){
-  const move = moveName || ATTACKS[Math.floor(Math.random() * ATTACKS.length)];
-  const aImg = document.getElementById('mon-' + attacker);
-  aImg.classList.remove('anim-lunge'); void aImg.offsetWidth; aImg.classList.add('anim-lunge');
-  setMessage('¡' + F[attacker].nick + ' usó ' + move + '! (-' + dmg + ')');
-
-  setTimeout(() => {
-    const tImg = document.getElementById('mon-' + target);
-    tImg.classList.remove('anim-shake','anim-blink'); void tImg.offsetWidth;
-    tImg.classList.add('anim-shake','anim-blink');
-    popDamage(target, dmg);
-
-    F[target].hp = Math.max(0, F[target].hp - dmg);
-    render();
-
-    if(F[target].hp <= 0) faintFighter(target, attacker);
-    else if(onDone) onDone();
-  }, 320);
-}
-
 function registerActivity(side){
   F[side].lastAct = Date.now();
   F[side].decay = {};
   F[side].missedTurns = 0;
 }
 
-// Al ganar: sube de nivel, +50 de vida máxima y se cura del todo.
+// Al ganar: sube de nivel, recalcula vida máxima y se cura del todo.
 function levelUp(side){
   if(!F[side].active) return;
   F[side].lv  += 1;
-  F[side].max += 50;
+  F[side].max = maxHpForLevel(F[side].lv);
   F[side].hp   = F[side].max;
   render();
 }
@@ -2291,7 +2319,7 @@ function faintFighter(loser, winner){
   setTimeout(() => {
     if(F[winner] && F[winner].active){
       levelUp(winner);
-      setMessage('¡' + loserNick + ' se debilitó! 🏆 ' + F[winner].nick + ' sube a Nv' + F[winner].lv + ', gana +50 HP y se cura al 100%');
+      setMessage('¡' + loserNick + ' se debilitó! 🏆 ' + F[winner].nick + ' sube a Nv' + F[winner].lv + ' y se cura al 100%');
     } else {
       setMessage('¡' + loserNick + ' se debilitó!');
     }
@@ -2410,6 +2438,8 @@ function hideTurnUI(side){
   if(support) support.classList.remove('show');
   const timer = document.getElementById('turn-timer-' + side);
   if(timer) timer.classList.remove('show');
+  const big = document.getElementById('charge-big-timer');
+  if(big) big.classList.remove('show');
 }
 
 /* ============ Despachador de eventos (vienen del servidor por SSE) ============ */
@@ -2469,33 +2499,6 @@ function setMessage(text){
     box.textContent = text.slice(0, ++i);
     if(i >= text.length) clearInterval(typer);
   }, 24);
-}
-
-function popDamage(side, dmg){
-  const ref = document.getElementById('mon-' + side);
-  const b = document.getElementById('battle').getBoundingClientRect();
-  const r = ref.getBoundingClientRect();
-  const pop = document.createElement('div');
-  pop.className = 'dmg-pop';
-  pop.textContent = '-' + dmg;
-  pop.style.left = (r.left - b.left + 60) + 'px';
-  pop.style.top  = (r.top  - b.top  + 40) + 'px';
-  document.getElementById('battle').appendChild(pop);
-  setTimeout(() => pop.remove(), 1000);
-}
-
-function popHeal(side, hp){
-  if(hp <= 0) return;
-  const ref = document.getElementById('mon-' + side);
-  const b = document.getElementById('battle').getBoundingClientRect();
-  const r = ref.getBoundingClientRect();
-  const pop = document.createElement('div');
-  pop.className = 'dmg-pop heal';
-  pop.textContent = '+' + hp;
-  pop.style.left = (r.left - b.left + 60) + 'px';
-  pop.style.top  = (r.top  - b.top  + 40) + 'px';
-  document.getElementById('battle').appendChild(pop);
-  setTimeout(() => pop.remove(), 1000);
 }
 
 function popBid(side, amount){

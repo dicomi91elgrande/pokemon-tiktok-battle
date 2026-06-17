@@ -68,8 +68,8 @@ POST Body de cada una:
 | Regalo 🏆 Super GG (ataque intermedio) | `{"event":"attack_mid","username":"{username}","nickname":"{nickname}","imgprofile":"{imgprofile}"}` |
 | Regalo 🔮 Manifestando (ataque potente) | `{"event":"attack_strong","username":"{username}","nickname":"{nickname}","imgprofile":"{imgprofile}"}` |
 | Regalo pistola de dinero | `{"event":"money_gun","username":"{username}","nickname":"{nickname}","imgprofile":"{imgprofile}"}` |
-| Regalo sombrero con bigote (poción +150 HP) | `{"event":"potion","username":"{username}","nickname":"{nickname}","imgprofile":"{imgprofile}"}` |
-| Regalo galaxia (+5 niveles) | `{"event":"level_galaxy","username":"{username}","nickname":"{nickname}","imgprofile":"{imgprofile}"}` |
+| Regalo sombrero con bigote (150 carga) | `{"event":"potion","username":"{username}","nickname":"{nickname}","imgprofile":"{imgprofile}"}` |
+| Regalo galaxia (500 carga) | `{"event":"level_galaxy","username":"{username}","nickname":"{nickname}","imgprofile":"{imgprofile}"}` |
 
 Opcional, si quieres mantener un webhook genérico para otros regalos:
 
@@ -81,11 +81,12 @@ Opcional, si quieres mantener un webhook genérico para otros regalos:
 - El comentario asigna el Pokémon. Cualquier regalo puede meter al usuario a luchar o a la cola si antes escribió un Pokémon válido. Si ese usuario ya está luchando y está en su fase activa, el regalo suma carga.
 - El servidor filtra los eventos de chat: solo reenvía al overlay comentarios que parezcan un Pokémon válido, incluyendo errores leves como `picachu` por `Pikachu`.
 - Cuando hay 2 luchadores empieza uno al azar con **Carga tu ataque**. Durante `20` segundos visibles + `5` ocultos acumula regalos como poder de ataque.
-- Después el rival entra en **Carga tu defensa** y debe acumular al menos ese objetivo (`0/30`, `0/100`, etc.). Si llega al objetivo, esquiva la onda y pasa a cargar su ataque. Si no llega, la onda impacta y pierde.
+- Después el rival entra en **Carga tu defensa** y debe acumular al menos ese objetivo (`0/30`, `0/100`, etc.). Si llega al objetivo, esquiva la onda y pasa a cargar su ataque. Si no llega, recibe como daño la diferencia entre ataque y defensa.
 - Rosquilla vale `30`, Super GG vale `100`, Manifestando/Rayo vale `500`, sombrero con bigote vale `150`, galaxia vale `500`, pistola de dinero vale `500`. El webhook genérico `event:"attack"` usa `{coins}` como puntos de carga.
 - La pistola de dinero tiene su propio disparador/webhook (`event:"money_gun"`). Pone al usuario primero en la cola si no está luchando. Si ese usuario ya está luchando, suma `500` de carga en su fase activa.
 - En el panel del overlay hay un interruptor para permitir que cualquier regalo normal meta al usuario en batalla/cola si ya eligió Pokémon. Está activado por defecto; si lo apagas, solo entra con capibara.
-- La barra de vida no muestra números: se va desgastando visualmente con los intercambios, pero solo llega a `0` cuando un jugador no consigue defender el ataque.
+- La vida no muestra números en pantalla. Nv1 = `10 HP`, Nv2 = `20 HP`, Nv3 = `40 HP`, Nv4 = `50 HP`; desde Nv5 sube de `50` en `50`.
+- Si alguien no carga ningún ataque en su fase de ataque, pierde la mitad de su vida. Si le pasa dos turnos de ataque seguidos, se debilita.
 - Cuando empieza el combate, suena en bucle `assets/battle-music.mp3` como música de fondo a volumen bajo.
 - Puedes debilitar manualmente al luchador de arriba o abajo desde el panel de control del overlay.
 - **TEAM ROCKET** ya no aparece solo. Puedes sacarlo manualmente desde el panel: entra si hay hueco libre, o se pone en cola si los dos huecos están ocupados. Juega dentro del sistema de turnos como un rival NPC.

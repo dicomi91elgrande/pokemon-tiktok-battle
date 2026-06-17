@@ -80,12 +80,13 @@ Opcional, si quieres mantener un webhook genérico para otros regalos:
 **Cómo funciona el combate:**
 - El comentario asigna el Pokémon. Cualquier regalo puede meter al usuario a luchar o a la cola si antes escribió un Pokémon válido. Si ese usuario ya está luchando y está en su fase activa, el regalo suma carga.
 - El servidor filtra los eventos de chat: solo reenvía al overlay comentarios que parezcan un Pokémon válido, incluyendo errores leves como `picachu` por `Pikachu`.
-- Cuando hay 2 luchadores empieza uno al azar con **Carga tu ataque**. Durante `20` segundos visibles + `5` ocultos acumula regalos como poder de ataque.
+- Cuando hay 2 luchadores empieza uno al azar con **Carga tu ataque**. Durante `15` segundos visibles + `5` ocultos acumula regalos como poder de ataque.
 - Después el rival entra en **Carga tu defensa** y debe acumular al menos ese objetivo (`0/30`, `0/100`, etc.). Si llega al objetivo, esquiva la onda y pasa a cargar su ataque. Si no llega, recibe como daño la diferencia entre ataque y defensa.
 - Rosquilla vale `30`, Super GG vale `100`, Manifestando/Rayo vale `500`, sombrero con bigote vale `150`, galaxia vale `500`, pistola de dinero vale `500`. El webhook genérico `event:"attack"` usa `{coins}` como puntos de carga.
 - La pistola de dinero tiene su propio disparador/webhook (`event:"money_gun"`). Pone al usuario primero en la cola si no está luchando. Si ese usuario ya está luchando, suma `500` de carga en su fase activa.
 - En el panel del overlay hay un interruptor para permitir que cualquier regalo normal meta al usuario en batalla/cola si ya eligió Pokémon. Está activado por defecto; si lo apagas, solo entra con capibara.
-- La vida no muestra números en pantalla. Nv1 = `10 HP`, Nv2 = `20 HP`, Nv3 = `40 HP`, Nv4 = `50 HP`; desde Nv5 sube de `50` en `50`.
+- La vida vuelve a mostrarse como `HP actual / HP máximo`. Nv1 = `10 HP`, Nv2 = `20 HP`, Nv3 = `40 HP`, Nv4 = `50 HP`; desde Nv5 sube de `50` en `50`.
+- Si ves que al llegar a `0` tarda unos segundos en cambiar, es el margen oculto de `5` segundos para contar regalos que lleguen con retraso.
 - Si alguien no carga ningún ataque en su fase de ataque, pierde la mitad de su vida. Si le pasa dos turnos de ataque seguidos, se debilita.
 - Cuando empieza el combate, suena en bucle `assets/battle-music.mp3` como música de fondo a volumen bajo.
 - Puedes debilitar manualmente al luchador de arriba o abajo desde el panel de control del overlay.

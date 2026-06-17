@@ -161,6 +161,14 @@
   .mon.charging.charge-3 img {
     filter: brightness(2) drop-shadow(0 0 16px #fff56b) drop-shadow(0 0 38px #44d7ff) drop-shadow(0 0 44px #ff8cf0);
   }
+  .mon.charging.charge-4 img {
+    filter: brightness(2.45) drop-shadow(0 0 20px #fff) drop-shadow(0 0 46px #fff56b) drop-shadow(0 0 58px #44d7ff) drop-shadow(0 0 70px #ff8cf0);
+  }
+  .mon.charging.charge-4::before {
+    opacity: .95;
+    animation: chargeAura .45s ease-out infinite;
+    background: radial-gradient(circle, transparent 22%, rgba(255,255,255,.95) 36%, rgba(255,245,90,.9) 52%, rgba(84,215,255,.75) 70%, transparent 84%);
+  }
   @keyframes chargeAura {
     from { transform: translate(-50%,-50%) scale(.8); opacity: .95; }
     to   { transform: translate(-50%,-50%) scale(2.1); opacity: 0; }
@@ -217,7 +225,7 @@
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .hp-num {
-    display: none;
+    text-align: right; font-size: 10px; letter-spacing: 1px; white-space: nowrap;
   }
 
   /* ===== Turno activo: borde amarillo + cuenta atrás + opciones ===== */
@@ -393,6 +401,7 @@
   }
   .charge-panel.show { display: block; }
   .charge-title { font-size: 15px; margin-bottom: 10px; }
+  .charge-user { color: #5cff8d; font-size: 17px; text-shadow: 0 0 8px rgba(92,255,141,.85), 1px 1px 0 rgba(0,0,0,.5); }
   .charge-big-timer {
     display: none;
     position: absolute;
@@ -644,7 +653,7 @@
     </div>
 
     <div class="msgbox" id="msgbox">¡Esperando jugadores…!</div>
-    <div class="charge-big-timer" id="charge-big-timer">20</div>
+    <div class="charge-big-timer" id="charge-big-timer">15</div>
     <div class="charge-panel" id="charge-panel">
       <div class="charge-title" id="charge-title">Carga tu ataque</div>
       <div class="charge-meter"><div class="charge-fill" id="charge-fill"></div></div>
@@ -729,7 +738,7 @@ const SHOWDOWN = 'https://play.pokemonshowdown.com/sprites/';
 const ATTACKS = ['PLACAJE','ARAÑAZO','RAYO','LANZALLAMAS','HIDROBOMBA','PUÑO TRUENO','MEGAPATADA','GOLPE CUERPO'];
 const MONEY_GUN_COINS = 500;
 const BASE_HP = 10;
-const TURN_SECONDS = 20;         // duración visible de cada fase de carga
+const TURN_SECONDS = 15;         // duración visible de cada fase de carga
 const HIDDEN_GRACE_SECONDS = 5;  // margen oculto para regalos que llegan en los últimos segundos
 const HP_PER_LEVEL = 50;
 const POTION_COINS = 150;
@@ -1768,7 +1777,7 @@ function render(){
     document.getElementById('name-' + side).textContent = f.active ? f.nick : 'Esperando…';
     document.getElementById('lv-' + side).textContent = 'Nv' + f.lv;
     const hpNum = document.getElementById('hpnum-' + side);
-    if(hpNum) hpNum.textContent = '';
+    if(hpNum) hpNum.textContent = f.active ? (f.hp + '/' + f.max) : '';
     const monName = document.getElementById('mon-name-' + side);
     if(monName) monName.textContent = f.active ? f.mon : '';
     renderAttackOptions(side);
@@ -1998,11 +2007,11 @@ function turnTimeout(side){
       F[side].hp = Math.max(0, F[side].hp - penalty);
       render();
       if(F[side].hp <= 0){
-        setMessage('⏳ ' + F[side].nick + ' no cargó ataque dos turnos seguidos y se debilitó.');
+        setMessage('Tu Pokémon se debilitó por no atacar.');
         faintFighter(side, other);
         return;
       }
-      setMessage('⏳ ' + F[side].nick + ' no cargó ataque y pierde ' + penalty + ' HP.');
+      setMessage('Tu Pokémon se debilitó por no atacar. Pierde ' + penalty + ' HP.');
       startChargeTurn(other, 'attack', 0, null);
       return;
     }
@@ -2082,7 +2091,7 @@ function updateChargePanel(){
   const isDefense = chargePhase === 'defense';
   const target = isDefense ? chargeTarget : Math.max(100, chargeTotal || 100);
   const pct = isDefense ? Math.min(100, (chargeTotal / Math.max(1, chargeTarget)) * 100) : Math.min(100, chargeTotal);
-  title.textContent = (isDefense ? 'Carga tu defensa ' : 'Carga tu ataque ') + F[currentTurn].nick;
+  title.innerHTML = (isDefense ? 'Carga tu defensa ' : 'Carga tu ataque ') + '<span class="charge-user">' + escapeHtml(F[currentTurn].nick) + '</span>';
   if(fill) fill.style.width = pct + '%';
   if(count) count.textContent = isDefense ? (chargeTotal + '/' + chargeTarget) : String(chargeTotal);
   if(help) help.textContent = isDefense ? '🪙 1 moneda = 1 punto de defensa' : '🪙 1 moneda = 1 punto de ataque';
@@ -2099,7 +2108,7 @@ function hideChargePanel(){
 function clearChargingAura(){
   for(const side of ['top','bot']){
     const mon = document.getElementById('mon-' + side);
-    if(mon) mon.classList.remove('charging','charge-2','charge-3');
+    if(mon) mon.classList.remove('charging','charge-2','charge-3','charge-4');
   }
 }
 
@@ -2118,6 +2127,7 @@ function pulseCharge(side){
     : chargeTotal / 100;
   mon.classList.toggle('charge-2', ratio >= .5);
   mon.classList.toggle('charge-3', ratio >= 1);
+  mon.classList.toggle('charge-4', ratio >= 2);
 }
 
 function launchEnergy(fromSide, toSide, dodged, onDone){

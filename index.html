@@ -4,9 +4,9 @@
   Recibe eventos reales de TikFinity/Interactive a través del servidor (server.py)
   por SSE. Flujo del juego:
     - El usuario escribe un Pokémon en el chat  -> se le asigna ese Pokémon (con su foto real)
-    - 🦦 Capibara   -> entra a un hueco libre del combate, o a la cola si están llenos.
-      Si ya está luchando, la capibara ataca con 30 de daño.
-    - 🎁 Otros regalos de los 2 luchadores -> ataque (monedas = daño). Ganar sube de nivel (+50 HP) y cura al 100%.
+    - Cualquier regalo puede entrar a un hueco libre del combate, o a la cola si están llenos.
+    - 🎁 Los regalos de los luchadores son donaciones por turnos: cada turno debe superar la última donación.
+      Si no la supera antes de que acabe su turno, pierde. Ganar sube de nivel (+50 HP) y cura al 100%.
     - El control manual permite debilitar a cualquiera de los dos luchadores.
 
   El panel de la derecha es un SIMULADOR de TikFinity (postea a /webhook igual que
@@ -519,8 +519,8 @@
       <div class="atk-opt"><span class="ao-t">Potente</span><span class="ao-s">&gt;100</span></div>
     </div>
     <div class="support-options top" id="support-options-top">
-      <div class="support-opt"><img src="assets/hat-mustache.png" alt="" onerror="this.style.display='none'"><span class="it-txt">+150HP</span></div>
-      <div class="support-opt"><img src="assets/galaxy.png" alt="" onerror="this.style.display='none'"><span class="it-txt">+5lvl</span></div>
+      <div class="support-opt"><img src="assets/hat-mustache.png" alt="" onerror="this.style.display='none'"><span class="it-txt">150</span></div>
+      <div class="support-opt"><img src="assets/galaxy.png" alt="" onerror="this.style.display='none'"><span class="it-txt">500</span></div>
     </div>
 
     <!-- Jugador (slot inferior) -->
@@ -547,14 +547,14 @@
       <div class="atk-opt"><span class="ao-t">Potente</span><span class="ao-s">&gt;100</span></div>
     </div>
     <div class="support-options bottom" id="support-options-bot">
-      <div class="support-opt"><img src="assets/hat-mustache.png" alt="" onerror="this.style.display='none'"><span class="it-txt">+150HP</span></div>
-      <div class="support-opt"><img src="assets/galaxy.png" alt="" onerror="this.style.display='none'"><span class="it-txt">+5lvl</span></div>
+      <div class="support-opt"><img src="assets/hat-mustache.png" alt="" onerror="this.style.display='none'"><span class="it-txt">150</span></div>
+      <div class="support-opt"><img src="assets/galaxy.png" alt="" onerror="this.style.display='none'"><span class="it-txt">500</span></div>
     </div>
 
     <div class="msgbox" id="msgbox">¡Esperando jugadores…!</div>
     <div class="prep-banner" id="prep-banner">
       <img src="assets/galaxy.png" alt="" onerror="this.style.display='none'" />
-      <span>¡PUJA! El que mande el regalo más grande ataca primero.</span>
+      <span>Supera la última donación antes de que acabe tu turno.</span>
       <b id="prep-count">20</b>
     </div>
   </div>
@@ -607,20 +607,19 @@
     </div>
     <button class="alt" onclick="simMoneyGun()">💸 Pistola de dinero<br><small>500 / primero en cola</small></button>
     <div class="row">
-      <button class="alt" onclick="simPotion('top')">🎩 +150 HP T1</button>
-      <button class="alt" onclick="simPotion('bot')">🎩 +150 HP T2</button>
+      <button class="alt" onclick="simPotion('top')">🎩 150 T1</button>
+      <button class="alt" onclick="simPotion('bot')">🎩 150 T2</button>
     </div>
     <div class="row">
-      <button class="alt" onclick="simGalaxyLevel('top')">🌌 +5 Nv T1</button>
-      <button class="alt" onclick="simGalaxyLevel('bot')">🌌 +5 Nv T2</button>
+      <button class="alt" onclick="simGalaxyLevel('top')">🌌 500 T1</button>
+      <button class="alt" onclick="simGalaxyLevel('bot')">🌌 500 T2</button>
     </div>
     <div class="row">
       <button class="alt" onclick="manualFaint('top')">☠️ KO arriba</button>
       <button class="alt" onclick="manualFaint('bot')">☠️ KO abajo</button>
     </div>
-    <button class="alt" onclick="manualTeamRocket()">🚀 Sacar TEAM ROCKET<br><small>entra o va a la cola</small></button>
     <button class="alt" onclick="simReset()">🔄 Reiniciar partida</button>
-    <div class="hint">En la puja (20s) cuenta el regalo de más valor. En combate, solo puede atacar el jugador del turno activo (borde amarillo).</div>
+    <div class="hint">Combate por turnos: cada jugador debe superar la última donación del rival.</div>
   </div>
 </div>
 
@@ -630,17 +629,12 @@ const SHOWDOWN = 'https://play.pokemonshowdown.com/sprites/';
 const ATTACKS = ['PLACAJE','ARAÑAZO','RAYO','LANZALLAMAS','HIDROBOMBA','PUÑO TRUENO','MEGAPATADA','GOLPE CUERPO'];
 const MONEY_GUN_COINS = 500;
 const BASE_HP = 10;
-const BID_SECONDS = 20;          // ventana de puja para decidir quién empieza
-const TURN_SECONDS = 30;         // duración del turno de cada jugador
+const TURN_SECONDS = 20;         // duración visible de cada turno
 const HIDDEN_GRACE_SECONDS = 5;  // margen oculto para regalos que llegan en los últimos segundos
-const TURN_TIMEOUT_FRAC = 0.30;  // % de vida máxima que pierde si no ataca en su primer turno seguido
 const HP_PER_LEVEL = 50;
-const LEVEL_DAMAGE_BONUS = 0.20; // cada nivel por encima de Nv1 suma +20% de daño
-const HAT_HEAL_HP = 150;
-const GALAXY_LEVELS = 5;
-// Tipos de ataque. El daño = valor en monedas del regalo (constante, NO escala con nivel).
-// El tipo (sencillo/intermedio/potente) se decide por el valor del regalo (ver tierForCoins),
-// y solo sirve para mostrar el nombre del ataque del Pokémon en el mensaje.
+const POTION_COINS = 150;
+const GALAXY_COINS = 500;
+// Tipos de donación. El valor del regalo decide el nombre del movimiento que se muestra.
 const ATTACK_TIERS = {
   simple: { key:'simple', label:'Sencillo',   coins:30,  move:'PLACAJE',     bid:30 },
   mid:    { key:'mid',    label:'Intermedio', coins:100, move:'BOLA SOMBRA', bid:100 },
@@ -1409,8 +1403,6 @@ const POKEMON_ATTACKS = {
     "strong": "Aura Esfera"
   }
 };
-const TEAM_ROCKET_USER = '__team_rocket__';
-const TEAM_ROCKET_SPRITES = { top: 'assets/team-rocket-front.png', bot: 'assets/team-rocket-back.png' };
 const BATTLE_MUSIC_SRC = 'assets/battle-music.mp3';
 const BATTLE_MUSIC_VOLUME = 0.15;
 
@@ -1543,17 +1535,15 @@ function sizeSprite(img){
 
 /* ============ Estado del juego ============ */
 // Dos slots activos del combate
-function emptyFighter(){ return { user:'', nick:'', mon:'', img:'', sprite:'', hp:0, max:BASE_HP, lv:1, active:false, lastAct:0, decay:{}, missedTurns:0, isNpc:false }; }
+function emptyFighter(){ return { user:'', nick:'', mon:'', img:'', sprite:'', hp:0, max:BASE_HP, lv:1, active:false, lastAct:0, decay:{}, missedTurns:0 }; }
 const F = { top: emptyFighter(), bot: emptyFighter() };
 // Cola de retadores y registro de elecciones por usuario
 let queue = [];
 let registry = {};        // username -> { nick, mon, img }
 let battleLocked = false;  // true mientras se resuelve un KO (evita dobles)
-let rocketAttackTimers = [];
-let biddingActive = false;
-let biddingTimer = null;
-let biddingInterval = null;
-let bids = { top: 0, bot: 0 };
+let duelStarted = false;
+let duelCurrentBid = 0;
+let duelLastBidder = null;
 let currentTurn = null;     // 'top' | 'bot' | null (turno activo)
 let turnTimer = null;
 let turnInterval = null;
@@ -1591,13 +1581,11 @@ function avatarUrl(img){
 
 /* ============ Pintar combatientes ============ */
 function setFighter(side, f){
-  if(F[side].isNpc) clearRocketAttacks();
   const max = f.max || BASE_HP;
   const profileImg = cleanProfileImage(f.img);
   F[side] = {
-    user:f.user, nick:f.nick, mon:f.mon, img:profileImg, sprite:f.sprite || (f.isNpc ? TEAM_ROCKET_SPRITES[side] : ''),
+    user:f.user, nick:f.nick, mon:f.mon, img:profileImg, sprite:f.sprite || '',
     hp:f.hp || max, max, lv:f.lv || 1, active:true, lastAct:Date.now(), decay:{}, missedTurns:f.missedTurns || 0,
-    isNpc:!!f.isNpc
   };
   const el = document.getElementById('mon-' + side);
   el.classList.remove('anim-faint','anim-shake','anim-blink','anim-lunge','anim-powerup');
@@ -1626,11 +1614,9 @@ function setFighter(side, f){
   rank.title = f.nick || f.user || '';
   av.style.display = 'block';
   render();
-  syncRocketTimer();
 }
 
 function clearFighter(side){
-  if(F[side].isNpc) clearRocketAttacks();
   F[side] = emptyFighter();
   const el = document.getElementById('mon-' + side);
   el.classList.remove('anim-faint','anim-shake','anim-blink','anim-lunge','anim-powerup');
@@ -1645,7 +1631,6 @@ function clearFighter(side){
   rank.title = '';
   av.style.display = 'none';
   render();
-  syncRocketTimer();
 }
 
 function render(){
@@ -1711,6 +1696,10 @@ function renderSelectionNotices(){
 function onFight(user, nick, img){        // 🦦 capibara
   const fightingSide = getFightingSide(user);
   if(fightingSide){
+    if(currentTurn !== fightingSide){
+      setMessage('No es el turno de ' + F[fightingSide].nick + '.');
+      return;
+    }
     const r = registry[user] || {};
     r.nick = nick; if(img) r.img = img;
     registry[user] = r;
@@ -1746,27 +1735,29 @@ function isInQueue(user){
   return queue.some(c => c.user === user);
 }
 
-function giftAttack(attacker, dmg, moveName){
-  if(biddingActive){ registerBid(attacker, dmg); return; }
+function giftAttack(attacker, amount, moveName){
   if(battleLocked || turnResolving || currentTurn !== attacker) return;
   const target = attacker === 'top' ? 'bot' : 'top';
   if(!F[target].active || F[target].hp <= 0) return;
+  if(amount <= duelCurrentBid){
+    setMessage('⚠️ ' + F[attacker].nick + ' debe superar ' + duelCurrentBid + '.');
+    return;
+  }
   registerActivity(attacker);
-  // daño = valor del regalo (constante). El tipo de ataque (nombre) lo da el valor.
-  const tierKey = tierForCoins(dmg);
+  duelCurrentBid = amount;
+  duelLastBidder = attacker;
+  const tierKey = tierForCoins(amount);
   const move = moveName || tierMoveName(F[attacker].mon, tierKey);
-  // marca el turno como "resolviendo" y detiene la cuenta atrás (ya atacó)
   turnResolving = true;
   if(turnInterval){ clearInterval(turnInterval); turnInterval = null; }
   if(turnTimer){ clearTimeout(turnTimer); turnTimer = null; }
   highlightAttackOption(attacker, tierKey, true);   // casilla en verde
-  doAttack(attacker, target, dmg, move, () => {
-    // deja el ataque en verde un par de segundos antes de pasar el turno
+  showDonation(attacker, amount, move, () => {
     setTimeout(() => {
       highlightAttackOption(attacker, tierKey, false);
       turnResolving = false;
       if(F[target].hp > 0 && !battleLocked) startTurn(target);
-    }, 1600);
+    }, 1200);
   });
 }
 
@@ -1799,60 +1790,28 @@ function activeBattleReady(){
   return F.top.active && F.bot.active && !battleLocked;
 }
 
-// Arranca la batalla (puja) cuando hay 2 luchadores y no hay ya puja/turno en curso.
+// Arranca el duelo cuando hay 2 luchadores y no hay turno en curso.
 function maybeStartBattle(){
-  if(!activeBattleReady() || biddingActive || currentTurn) return;
-  startBidding();
+  if(!activeBattleReady() || duelStarted || currentTurn) return;
+  startDonationDuel();
 }
 
-/* ===== Fase de puja (20s): el regalo más grande empieza ===== */
-function startBidding(){
+function startDonationDuel(){
   clearTurnState();
   clearBidding();
-  biddingActive = true;
-  bids = { top: 0, bot: 0 };
+  duelStarted = true;
+  duelCurrentBid = 0;
+  duelLastBidder = null;
   startBattleMusic();
-  let remaining = BID_SECONDS;
-  showBidBanner(remaining);
-  setMessage('¡' + BID_SECONDS + 's! El regalo más grande ataca primero ⚔️');
-  biddingInterval = setInterval(() => {
-    remaining -= 1;
-    showBidBanner(remaining);
-    if(remaining <= 0){
-      if(biddingInterval) clearInterval(biddingInterval);
-      biddingInterval = null;
-      hideBidBanner();
-    }
-  }, 1000);
-  biddingTimer = setTimeout(finishBidding, (BID_SECONDS + HIDDEN_GRACE_SECONDS) * 1000 + 150);
-}
-
-function registerBid(side, value){
-  if(!biddingActive || !F[side].active || F[side].isNpc) return;
-  if(value > bids[side]){
-    bids[side] = value;
-    setMessage('🎁 ¡' + F[side].nick + ' puja ' + value + ' para atacar primero!');
-  }
-}
-
-function finishBidding(){
-  if(!biddingActive) return;
-  clearBidding();
-  if(!activeBattleReady()) return;
-  let first;
-  if(bids.top > bids.bot) first = 'top';
-  else if(bids.bot > bids.top) first = 'bot';
-  else first = Math.random() < 0.5 ? 'top' : 'bot';
-  setMessage('¡Comienza el combate! Empieza ' + F[first].nick + ' 🔥');
+  const first = Math.random() < 0.5 ? 'top' : 'bot';
+  setMessage('¡Empieza el duelo! ' + F[first].nick + ' debe hacer la primera donación.');
   startTurn(first);
 }
 
 function clearBidding(){
-  if(biddingTimer) clearTimeout(biddingTimer);
-  if(biddingInterval) clearInterval(biddingInterval);
-  biddingTimer = null;
-  biddingInterval = null;
-  biddingActive = false;
+  duelStarted = false;
+  duelCurrentBid = 0;
+  duelLastBidder = null;
   const banner = document.getElementById('prep-banner');
   if(banner) banner.classList.remove('show');
 }
@@ -1877,12 +1836,7 @@ function startTurn(side){
   currentTurn = side;
   let remaining = TURN_SECONDS;
   updateTurnUI(side, remaining);
-  if(F[side].isNpc){
-    setMessage('Turno de ' + F[side].nick + '…');
-    turnTimer = setTimeout(() => npcTakeTurn(side), 1800);
-    return;
-  }
-  setMessage('Turno de ' + F[side].nick + ' — ¡elige tu ataque!');
+  setMessage('Turno de ' + F[side].nick + ' — debe superar ' + duelCurrentBid + '.');
   turnInterval = setInterval(() => {
     remaining -= 1;
     updateTurnUI(side, remaining);
@@ -1895,30 +1849,15 @@ function startTurn(side){
   turnTimer = setTimeout(() => turnTimeout(side), (TURN_SECONDS + HIDDEN_GRACE_SECONDS) * 1000 + 150);
 }
 
-// Se acaba el turno sin atacar: pierde vida y pasa el turno.
+// Se acaba el turno sin superar la apuesta: pierde el duelo.
 function turnTimeout(side){
   clearTurnState();
   if(!F[side].active) return;
-  F[side].missedTurns = (F[side].missedTurns || 0) + 1;
-  const dmg = F[side].missedTurns >= 2 ? F[side].hp : Math.max(1, Math.round(F[side].max * TURN_TIMEOUT_FRAC));
-  F[side].hp = Math.max(0, F[side].hp - dmg);
   const img = document.getElementById('mon-' + side);
   img.classList.remove('anim-blink'); void img.offsetWidth; img.classList.add('anim-blink');
-  popDamage(side, dmg);
-  setMessage(F[side].missedTurns >= 2
-    ? '⏳ ¡' + F[side].nick + ' perdió dos turnos seguidos y se debilitó!'
-    : '⏳ ¡' + F[side].nick + ' no atacó a tiempo! Pierde ' + dmg + ' HP.');
+  setMessage('⏳ ¡' + F[side].nick + ' no superó ' + duelCurrentBid + ' y pierde el duelo!');
   render();
-  if(F[side].hp <= 0){ faintFighter(side, side === 'top' ? 'bot' : 'top'); return; }
-  startTurn(side === 'top' ? 'bot' : 'top');
-}
-
-// Team Rocket (NPC) juega su turno con un ataque al azar.
-function npcTakeTurn(side){
-  if(currentTurn !== side || !F[side].active) return;
-  const keys = Object.keys(ATTACK_TIERS);
-  const tier = ATTACK_TIERS[keys[Math.floor(Math.random() * keys.length)]];
-  giftAttack(side, tier.coins);
+  faintFighter(side, side === 'top' ? 'bot' : 'top');
 }
 
 function clearTurnState(){
@@ -1943,7 +1882,7 @@ function clearTurnState(){
 function updateTurnUI(side, secondsLeft){
   for(const s of ['top','bot']){
     const isActive = (s === side);
-    const human = isActive && !F[s].isNpc;
+    const human = isActive;
     const box = document.querySelector('.infobox.' + (s === 'bot' ? 'bottom' : 'top'));
     if(box) box.classList.toggle('active-turn', isActive);
     const opts = document.getElementById('atk-options-' + s);
@@ -1967,17 +1906,16 @@ function onTierAttack(user, nick, img, tierKey){
     if(anyGiftEntryEnabled) tryEnterFromGift(user, nick, img);
     return;
   }
-  if(biddingActive){ registerBid(side, tier.coins); return; }
   if(battleLocked) return;
   if(currentTurn !== side){
     setMessage('No es el turno de ' + F[side].nick + '.');
     return;
   }
-  giftAttack(side, tier.coins);   // daño = valor del regalo; el tipo lo decide el valor
+  giftAttack(side, tier.coins);
 }
 
 // Un regalo de un usuario solo cuenta si ese usuario es uno de los 2 luchadores.
-// Su regalo daña al rival. coins = daño.
+// coins = valor de donación que debe superar la apuesta actual.
 function onAttack(user, nick, img, coins){
   if(coins <= 0) return;
   const side = getFightingSide(user);
@@ -1985,62 +1923,44 @@ function onAttack(user, nick, img, coins){
     if(anyGiftEntryEnabled) tryEnterFromGift(user, nick, img);
     return;
   }
-  giftAttack(side, coins);   // giftAttack gestiona puja y turno
-}
-
-function finishSupportTurn(side){
-  if(!F[side].active || battleLocked) return;
-  const target = side === 'top' ? 'bot' : 'top';
-  clearTurnState();
-  if(F[target].active && F[target].hp > 0) startTurn(target);
+  if(currentTurn !== side){
+    setMessage('No es el turno de ' + F[side].nick + '.');
+    return;
+  }
+  giftAttack(side, coins);
 }
 
 function onHatHeal(user){
-  if(battleLocked || biddingActive || turnResolving) return;
+  if(battleLocked || turnResolving) return;
   const side = getFightingSide(user);
   if(!side || !F[side].active || F[side].hp <= 0) return;
   if(currentTurn !== side){
     setMessage('No es el turno de ' + F[side].nick + '.');
     return;
   }
-  const before = F[side].hp;
-  F[side].hp = Math.min(F[side].max, F[side].hp + HAT_HEAL_HP);
-  render();
-  const healed = F[side].hp - before;
-  if(healed <= 0){
-    setMessage('🎩 ' + F[side].nick + ' ya tiene toda la vida.');
-    return;
-  }
-  popHeal(side, healed);
-  setMessage('🎩 ¡' + F[side].nick + ' recuperó ' + healed + ' HP!');
-  finishSupportTurn(side);
+  giftAttack(side, POTION_COINS, 'Poción');
 }
 
 function onGalaxyLevel(user){
-  if(battleLocked || biddingActive || turnResolving) return;
+  if(battleLocked || turnResolving) return;
   const side = getFightingSide(user);
   if(!side || !F[side].active || F[side].hp <= 0) return;
   if(currentTurn !== side){
     setMessage('No es el turno de ' + F[side].nick + '.');
     return;
   }
-  const before = F[side].hp;
-  F[side].lv += GALAXY_LEVELS;
-  F[side].max += GALAXY_LEVELS * HP_PER_LEVEL;
-  F[side].hp = F[side].max;
-  render();
-  const mon = document.getElementById('mon-' + side);
-  mon.classList.remove('anim-powerup'); void mon.offsetWidth; mon.classList.add('anim-powerup');
-  popHeal(side, F[side].hp - before);
-  setMessage('🌌 ¡' + F[side].nick + ' subió +' + GALAXY_LEVELS + ' niveles y recuperó toda la vida!');
-  finishSupportTurn(side);
+  giftAttack(side, GALAXY_COINS, 'Galaxia');
 }
 
 function moneyGunPriority(user, nick, img){
   if(battleLocked) return;
   const fightingSide = getFightingSide(user);
   if(fightingSide){
-    giftAttack(fightingSide, MONEY_GUN_COINS);   // puja o ataque potente en su turno
+    if(currentTurn !== fightingSide){
+      setMessage('No es el turno de ' + F[fightingSide].nick + '.');
+      return;
+    }
+    giftAttack(fightingSide, MONEY_GUN_COINS);
     return;
   }
   const r = registry[user] || {};
@@ -2070,85 +1990,22 @@ function moneyGunPriority(user, nick, img){
   setMessage('💸 ¡' + f.nick + ' se pone primero en la cola!');
 }
 
-function singleHumanSide(){
-  if(battleLocked || queue.length) return null;
-  if(F.top.active && !F.top.isNpc && !F.bot.active) return 'top';
-  if(F.bot.active && !F.bot.isNpc && !F.top.active) return 'bot';
-  return null;
-}
-
-function syncRocketTimer(){
-  // TEAM ROCKET ya no aparece solo: lo lanza el botón del panel.
-}
-
-function teamRocketFighter(level){
-  return {
-    user: TEAM_ROCKET_USER,
-    nick: 'TEAM ROCKET',
-    mon: 'TEAM ROCKET',
-    lv: level || 1,
-    max: BASE_HP + ((Math.max(1, level || 1) - 1) * HP_PER_LEVEL),
-    isNpc: true
-  };
-}
-
-function hasTeamRocket(){
-  return (F.top.active && F.top.isNpc) || (F.bot.active && F.bot.isNpc) || queue.some(f => f.isNpc);
-}
-
-function manualTeamRocket(){
-  if(battleLocked) return;
-  if(hasTeamRocket()){
-    setMessage('TEAM ROCKET ya está esperando su oportunidad.');
-    return;
-  }
-  const level = Math.max(F.top.active ? F.top.lv : 1, F.bot.active ? F.bot.lv : 1);
-  const rocket = teamRocketFighter(level);
-  if(F.top.active && F.bot.active){
-    queue.push(rocket);
-    renderQueue();
-    setMessage('🚀 TEAM ROCKET se pone en la cola.');
-    return;
-  }
-  enterBattle(rocket);
-  maybeStartBattle();
-}
-
-function clearRocketAttacks(){
-  for(const t of rocketAttackTimers) clearTimeout(t);
-  rocketAttackTimers = [];
-}
-
-function scaleDamageForLevel(side, baseDmg){
-  const lv = Math.max(1, F[side]?.lv || 1);
-  const mult = 1 + ((lv - 1) * LEVEL_DAMAGE_BONUS);
-  return Math.max(1, Math.round(baseDmg * mult));
-}
-
-function doAttack(attacker, target, dmg, moveName, onDone){
-  const move = moveName || ATTACKS[Math.floor(Math.random() * ATTACKS.length)];
-  const aImg = document.getElementById('mon-' + attacker);
-  aImg.classList.remove('anim-lunge'); void aImg.offsetWidth; aImg.classList.add('anim-lunge');
-  setMessage('¡' + F[attacker].nick + ' usó ' + move + '! (-' + dmg + ')');
-
-  setTimeout(() => {
-    const tImg = document.getElementById('mon-' + target);
-    tImg.classList.remove('anim-shake','anim-blink'); void tImg.offsetWidth;
-    tImg.classList.add('anim-shake','anim-blink');
-    popDamage(target, dmg);
-
-    F[target].hp = Math.max(0, F[target].hp - dmg);
-    render();
-
-    if(F[target].hp <= 0) faintFighter(target, attacker);
-    else if(onDone) onDone();
-  }, 320);
-}
-
 function registerActivity(side){
   F[side].lastAct = Date.now();
   F[side].decay = {};
   F[side].missedTurns = 0;
+}
+
+function showDonation(side, amount, moveName, onDone){
+  const move = moveName || 'Donación';
+  const mon = document.getElementById('mon-' + side);
+  mon.classList.remove('anim-lunge'); void mon.offsetWidth; mon.classList.add('anim-lunge');
+  setMessage('¡' + F[side].nick + ' sube la apuesta a ' + amount + ' con ' + move + '!');
+  render();
+  setTimeout(() => {
+    popBid(side, amount);
+    if(onDone) onDone();
+  }, 260);
 }
 
 // Al ganar: sube de nivel, +50 de vida máxima y se cura del todo.
@@ -2164,7 +2021,6 @@ function faintFighter(loser, winner){
   if(battleLocked) return;
   clearBidding();
   clearTurnState();
-  clearRocketAttacks();
   stopBattleMusic();
   battleLocked = true;
   F[loser].hp = 0; render();
@@ -2194,7 +2050,7 @@ function manualFaint(side){
 
 function fighterForSide(f, side){
   const moved = Object.assign({}, f);
-  moved.sprite = moved.isNpc ? TEAM_ROCKET_SPRITES[side] : '';
+  moved.sprite = '';
   return moved;
 }
 
@@ -2213,36 +2069,32 @@ function advanceQueue(loserSide, winnerSide){
     setMessage(champion ? ('¡' + next.nick + ' reta a ' + champion.nick + '! ⚔️') : ('¡' + next.nick + ' entra al combate! ⚔️'));
   } else {
     const champ = champion ? champion.nick : '';
-    setMessage(champ ? ('🏆 ' + champ + ' sigue invicto. ¡Envía 🦦 para retarle!') : '¡Esperando jugadores…!');
+    setMessage(champ ? ('🏆 ' + champ + ' sigue invicto. ¡Envía un regalo para retarle!') : '¡Esperando jugadores…!');
   }
   renderQueue();
   if(champion) registerActivity('top');  // respiro tras el KO
   battleLocked = false;
   maybeStartBattle();
-  syncRocketTimer();
 }
 
 function renderQueue(){
   const el = document.getElementById('queue-list');
   if(!queue.length){
     el.innerHTML = '<span class="qempty">Cola vacía</span>';
-    syncRocketTimer();
     return;
   }
   el.innerHTML = queue.map((c, i) => '<span class="qchip" title="' + escapeHtml(c.nick) + '"><b>' + (i+1) + '.</b> ' + escapeHtml(shortName(c.nick)) + '</span>').join('');
-  syncRocketTimer();
 }
 
 function resetGame(){
   stopBattleMusic();
   clearBidding();
   clearTurnState();
-  clearRocketAttacks();
   queue = []; registry = {}; selectionNotices = []; battleLocked = false;
   clearFighter('top'); clearFighter('bot');
   renderQueue();
   renderSelectionNotices();
-  setMessage('¡Listo! Escribe un Pokémon en el chat y manda 🦦 para luchar.');
+  setMessage('¡Listo! Escribe un Pokémon en el chat y manda un regalo para luchar.');
 }
 
 function cleanProfileImage(value){
@@ -2354,27 +2206,14 @@ function setMessage(text){
   }, 24);
 }
 
-function popDamage(side, dmg){
-  const ref = document.getElementById('mon-' + side);
-  const b = document.getElementById('battle').getBoundingClientRect();
-  const r = ref.getBoundingClientRect();
-  const pop = document.createElement('div');
-  pop.className = 'dmg-pop';
-  pop.textContent = '-' + dmg;
-  pop.style.left = (r.left - b.left + 60) + 'px';
-  pop.style.top  = (r.top  - b.top  + 40) + 'px';
-  document.getElementById('battle').appendChild(pop);
-  setTimeout(() => pop.remove(), 1000);
-}
-
-function popHeal(side, hp){
-  if(hp <= 0) return;
+function popBid(side, amount){
+  if(amount <= 0) return;
   const ref = document.getElementById('mon-' + side);
   const b = document.getElementById('battle').getBoundingClientRect();
   const r = ref.getBoundingClientRect();
   const pop = document.createElement('div');
   pop.className = 'dmg-pop heal';
-  pop.textContent = '+' + hp;
+  pop.textContent = amount;
   pop.style.left = (r.left - b.left + 60) + 'px';
   pop.style.top  = (r.top  - b.top  + 40) + 'px';
   document.getElementById('battle').appendChild(pop);
@@ -2466,7 +2305,7 @@ render();
 renderQueue();
 renderSelectionNotices();
 connectSSE();
-setMessage('¡Listo! Escribe un Pokémon en el chat y manda 🦦 para luchar.');
+setMessage('¡Listo! Escribe un Pokémon en el chat y manda un regalo para luchar.');
 </script>
 </body>
 </html>

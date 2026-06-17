@@ -78,21 +78,19 @@ Opcional, si quieres mantener un webhook genérico para otros regalos:
 | Cualquier otro regalo con monedas | `{"event":"attack","username":"{username}","nickname":"{nickname}","imgprofile":"{imgprofile}","coins":{coins}}` |
 
 **Cómo funciona el combate:**
-- El comentario asigna el Pokémon. La capibara mete al usuario a luchar o a la cola si antes escribió un Pokémon válido. Si ese usuario ya está luchando, la capibara hace 30 de daño al rival.
+- El comentario asigna el Pokémon. Cualquier regalo puede meter al usuario a luchar o a la cola si antes escribió un Pokémon válido. Si desactivas el interruptor del panel, solo entra con capibara.
 - El servidor filtra los eventos de chat: solo reenvía al overlay comentarios que parezcan un Pokémon válido, incluyendo errores leves como `picachu` por `Pikachu`.
-- Cuando hay 2 luchadores empieza una **puja visible de 20 segundos**. Después hay `5` segundos ocultos extra para contar regalos que lleguen con retraso. Durante esa puja, los regalos de ataque deciden quién empieza: Rosquilla vale `30`, Super GG vale `100`, Manifestando/Rayo vale `500` y pistola de dinero vale `500`.
-- Después de la puja, el combate va por **turnos visibles de 30 segundos** con `5` segundos ocultos extra. Solo puede atacar el jugador cuyo turno está activo. Si no ataca a tiempo una vez, pierde el `30%` de su vida máxima y pasa el turno; si vuelve a perder su siguiente turno seguido, se debilita.
-- El daño = **valor en monedas del regalo** (constante, NO escala con el nivel): un regalo que vale `5` quita `5` de vida. Rosquilla `30`, Super GG `100`, Manifestando/Rayo `500`. Cualquier otro regalo (`event:"attack"` con `{coins}`) quita su valor en monedas.
-- El valor del regalo decide solo el **nombre del ataque** que se muestra en el mensaje: `1-30` = sencillo, `30-100` = intermedio, `>100` = potente (usando los 3 ataques temáticos del Pokémon).
-- El webhook genérico `event:"attack"` usa `{coins}` como daño/puja, pero es opcional si ya usas los 3 ataques específicos.
-- La pistola de dinero tiene su propio disparador/webhook (`event:"money_gun"`). Pone al usuario primero en la cola si no está luchando. Si ese usuario ya está luchando, cuenta como puja/ataque de `500`.
-- El sombrero con bigote (`event:"potion"`) solo funciona en el turno del luchador y cura `150 HP`; al usarlo pasa el turno.
-- La galaxia (`event:"level_galaxy"`) solo funciona en el turno del luchador, sube `5` niveles, aumenta la vida máxima correspondiente y restaura toda la vida; al usarla pasa el turno.
-- En el panel del overlay hay un interruptor para permitir que cualquier regalo normal meta al usuario en batalla/cola si ya eligió Pokémon. Está activado por defecto; si lo apagas, solo entra con capibara.
+- Cuando hay 2 luchadores empieza un **duelo por turnos**. Empieza uno al azar.
+- Cada turno dura `20` segundos visibles + `5` segundos ocultos extra para contar regalos que lleguen con retraso.
+- En su turno, el jugador debe mandar una donación **mayor** que la última donación válida del rival. Si la supera, pasa el turno al rival y ese nuevo valor queda como apuesta a superar.
+- Si termina el turno y el jugador no ha superado la donación actual, pierde la batalla.
+- Rosquilla vale `30`, Super GG vale `100`, Manifestando/Rayo vale `500`, sombrero con bigote vale `150`, galaxia vale `500`, pistola de dinero vale `500`. El webhook genérico `event:"attack"` usa `{coins}` como valor de donación.
+- La pistola de dinero pone al usuario primero en la cola si no está luchando. Si ese usuario ya está luchando y es su turno, cuenta como donación de `500`.
+- En el panel del overlay hay un interruptor para permitir que cualquier regalo normal meta al usuario en batalla/cola si ya eligió Pokémon. Está activado por defecto.
 - Cada personaje empieza en **Nv1 con 10 HP**. Al ganar sube de nivel, gana **+50 HP** máx. y vuelve a curarse al **100%**.
-- Cuando empieza la puja/combate, suena en bucle `assets/battle-music.mp3` como música de fondo a volumen bajo.
+- Cuando empieza el combate, suena en bucle `assets/battle-music.mp3` como música de fondo a volumen bajo.
 - Puedes debilitar manualmente al luchador de arriba o abajo desde el panel de control del overlay.
-- **TEAM ROCKET** ya no aparece solo. Puedes sacarlo manualmente desde el panel: entra si hay hueco libre, o se pone en cola si los dos huecos están ocupados. Juega dentro del sistema de turnos como un rival NPC.
+- **TEAM ROCKET** está eliminado de la dinámica actual.
 
 > ⚠️ Importante: si usas también el webhook genérico `event:"attack"`, configura ese disparador para **excluir** capibara, pistola de dinero, sombrero con bigote, galaxia, rosquilla, Super GG y Manifestando. Cada uno de esos regalos ya tiene su propio webhook.
 > Nota: `{coins}` va **sin comillas** (es un número).

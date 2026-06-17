@@ -187,7 +187,7 @@
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   .hp-num {
-    text-align: right; font-size: 10px; letter-spacing: 1px; white-space: nowrap;
+    display: none;
   }
 
   /* ===== Turno activo: borde amarillo + cuenta atrás + opciones ===== */
@@ -1544,6 +1544,8 @@ let battleLocked = false;  // true mientras se resuelve un KO (evita dobles)
 let duelStarted = false;
 let duelCurrentBid = 0;
 let duelLastBidder = null;
+let turnTotal = 0;
+let turnGiftCount = 0;
 let currentTurn = null;     // 'top' | 'bot' | null (turno activo)
 let turnTimer = null;
 let turnInterval = null;
@@ -1585,7 +1587,7 @@ function setFighter(side, f){
   const profileImg = cleanProfileImage(f.img);
   F[side] = {
     user:f.user, nick:f.nick, mon:f.mon, img:profileImg, sprite:f.sprite || '',
-    hp:f.hp || max, max, lv:f.lv || 1, active:true, lastAct:Date.now(), decay:{}, missedTurns:f.missedTurns || 0,
+    hp:f.hp || 100, max, lv:f.lv || 1, active:true, lastAct:Date.now(), decay:{}, missedTurns:f.missedTurns || 0,
   };
   const el = document.getElementById('mon-' + side);
   el.classList.remove('anim-faint','anim-shake','anim-blink','anim-lunge','anim-powerup');
@@ -1636,7 +1638,7 @@ function clearFighter(side){
 function render(){
   for(const side of ['top','bot']){
     const f = F[side];
-    const pct = f.active ? Math.max(0, (f.hp / f.max) * 100) : 0;
+    const pct = f.active ? Math.max(0, Math.min(100, f.hp)) : 0;
     const fill = document.getElementById('hp-' + side);
     fill.style.width = pct + '%';
     fill.style.background = pct > 50
@@ -1645,7 +1647,7 @@ function render(){
     document.getElementById('name-' + side).textContent = f.active ? f.nick : 'Esperando…';
     document.getElementById('lv-' + side).textContent = 'Nv' + f.lv;
     const hpNum = document.getElementById('hpnum-' + side);
-    if(hpNum) hpNum.textContent = f.active ? (f.hp + '/' + f.max) : '';
+    if(hpNum) hpNum.textContent = '';
     const monName = document.getElementById('mon-name-' + side);
     if(monName) monName.textContent = f.active ? f.mon : '';
     renderAttackOptions(side);
@@ -1739,26 +1741,12 @@ function giftAttack(attacker, amount, moveName){
   if(battleLocked || turnResolving || currentTurn !== attacker) return;
   const target = attacker === 'top' ? 'bot' : 'top';
   if(!F[target].active || F[target].hp <= 0) return;
-  if(amount <= duelCurrentBid){
-    setMessage('⚠️ ' + F[attacker].nick + ' debe superar ' + duelCurrentBid + '.');
-    return;
-  }
   registerActivity(attacker);
-  duelCurrentBid = amount;
-  duelLastBidder = attacker;
+  turnTotal += amount;
+  turnGiftCount += 1;
   const tierKey = tierForCoins(amount);
   const move = moveName || tierMoveName(F[attacker].mon, tierKey);
-  turnResolving = true;
-  if(turnInterval){ clearInterval(turnInterval); turnInterval = null; }
-  if(turnTimer){ clearTimeout(turnTimer); turnTimer = null; }
-  highlightAttackOption(attacker, tierKey, true);   // casilla en verde
-  showDonation(attacker, amount, move, () => {
-    setTimeout(() => {
-      highlightAttackOption(attacker, tierKey, false);
-      turnResolving = false;
-      if(F[target].hp > 0 && !battleLocked) startTurn(target);
-    }, 1200);
-  });
+  showDonation(attacker, amount, move);
 }
 
 // Resalta en verde la casilla del tipo de ataque usado (simple/mid/strong).
@@ -1802,6 +1790,8 @@ function startDonationDuel(){
   duelStarted = true;
   duelCurrentBid = 0;
   duelLastBidder = null;
+  turnTotal = 0;
+  turnGiftCount = 0;
   startBattleMusic();
   const first = Math.random() < 0.5 ? 'top' : 'bot';
   setMessage('¡Empieza el duelo! ' + F[first].nick + ' debe hacer la primera donación.');
@@ -1812,6 +1802,8 @@ function clearBidding(){
   duelStarted = false;
   duelCurrentBid = 0;
   duelLastBidder = null;
+  turnTotal = 0;
+  turnGiftCount = 0;
   const banner = document.getElementById('prep-banner');
   if(banner) banner.classList.remove('show');
 }
@@ -1834,9 +1826,11 @@ function startTurn(side){
   clearTurnState();
   if(!activeBattleReady() || !F[side].active){ return; }
   currentTurn = side;
+  turnTotal = 0;
+  turnGiftCount = 0;
   let remaining = TURN_SECONDS;
   updateTurnUI(side, remaining);
-  setMessage('Turno de ' + F[side].nick + ' — debe superar ' + duelCurrentBid + '.');
+  setMessage('Turno de ' + F[side].nick + ' — acumula regalos para superar ' + duelCurrentBid + '.');
   turnInterval = setInterval(() => {
     remaining -= 1;
     updateTurnUI(side, remaining);
@@ -1849,15 +1843,25 @@ function startTurn(side){
   turnTimer = setTimeout(() => turnTimeout(side), (TURN_SECONDS + HIDDEN_GRACE_SECONDS) * 1000 + 150);
 }
 
-// Se acaba el turno sin superar la apuesta: pierde el duelo.
+// Se acaba el turno: si supera la apuesta pasa el turno, si no pierde.
 function turnTimeout(side){
   clearTurnState();
   if(!F[side].active) return;
+  const target = side === 'top' ? 'bot' : 'top';
+  if(turnTotal > duelCurrentBid){
+    duelCurrentBid = turnTotal;
+    duelLastBidder = side;
+    chipVisualHealth(target);
+    setMessage('✅ ' + F[side].nick + ' suma ' + turnTotal + ' y supera la puja. Turno de ' + F[target].nick + '.');
+    render();
+    if(F[target].active && F[target].hp > 0 && !battleLocked) startTurn(target);
+    return;
+  }
   const img = document.getElementById('mon-' + side);
   img.classList.remove('anim-blink'); void img.offsetWidth; img.classList.add('anim-blink');
-  setMessage('⏳ ¡' + F[side].nick + ' no superó ' + duelCurrentBid + ' y pierde el duelo!');
+  setMessage('⏳ ¡' + F[side].nick + ' solo sumó ' + turnTotal + ' y no superó ' + duelCurrentBid + '!');
   render();
-  faintFighter(side, side === 'top' ? 'bot' : 'top');
+  faintFighter(side, target);
 }
 
 function clearTurnState(){
@@ -1886,9 +1890,9 @@ function updateTurnUI(side, secondsLeft){
     const box = document.querySelector('.infobox.' + (s === 'bot' ? 'bottom' : 'top'));
     if(box) box.classList.toggle('active-turn', isActive);
     const opts = document.getElementById('atk-options-' + s);
-    if(opts) opts.classList.toggle('show', human);
+    if(opts) opts.classList.remove('show');
     const support = document.getElementById('support-options-' + s);
-    if(support) support.classList.toggle('show', human);
+    if(support) support.classList.remove('show');
     const timer = document.getElementById('turn-timer-' + s);
     if(timer){
       timer.classList.toggle('show', human);
@@ -1996,11 +2000,16 @@ function registerActivity(side){
   F[side].missedTurns = 0;
 }
 
+function chipVisualHealth(side){
+  if(!F[side].active) return;
+  F[side].hp = Math.max(8, F[side].hp - 12);
+}
+
 function showDonation(side, amount, moveName, onDone){
   const move = moveName || 'Donación';
   const mon = document.getElementById('mon-' + side);
   mon.classList.remove('anim-lunge'); void mon.offsetWidth; mon.classList.add('anim-lunge');
-  setMessage('¡' + F[side].nick + ' sube la apuesta a ' + amount + ' con ' + move + '!');
+  setMessage('¡' + F[side].nick + ' suma ' + amount + ' con ' + move + '! Total: ' + turnTotal + ' / objetivo: ' + (duelCurrentBid + 1));
   render();
   setTimeout(() => {
     popBid(side, amount);
@@ -2013,7 +2022,7 @@ function levelUp(side){
   if(!F[side].active) return;
   F[side].lv  += 1;
   F[side].max += 50;
-  F[side].hp   = F[side].max;
+  F[side].hp   = 100;
   render();
 }
 
@@ -2023,7 +2032,9 @@ function faintFighter(loser, winner){
   clearTurnState();
   stopBattleMusic();
   battleLocked = true;
-  F[loser].hp = 0; render();
+  F[loser].hp = 0;
+  if(F[winner] && F[winner].active) F[winner].hp = 100;
+  render();
   const tImg = document.getElementById('mon-' + loser);
   tImg.classList.add('anim-faint');
   const loserNick = F[loser].nick;

@@ -82,12 +82,12 @@ Opcional, si quieres mantener un webhook genérico para otros regalos:
 - El servidor filtra los eventos de chat: solo reenvía al overlay comentarios que parezcan un Pokémon válido, incluyendo errores leves como `picachu` por `Pikachu`.
 - Cuando hay 2 luchadores empieza un **duelo por turnos**. Empieza uno al azar.
 - Cada turno dura `20` segundos visibles + `5` segundos ocultos extra para contar regalos que lleguen con retraso.
-- En su turno, el jugador debe mandar una donación **mayor** que la última donación válida del rival. Si la supera, pasa el turno al rival y ese nuevo valor queda como apuesta a superar.
-- Si termina el turno y el jugador no ha superado la donación actual, pierde la batalla.
+- En su turno, el jugador acumula regalos durante todo el crono. Al terminar el turno, el total acumulado debe ser **mayor** que la última puja válida del rival.
+- Si supera la puja, el turno pasa al rival y ese total queda como nuevo objetivo a superar. Si no la supera, pierde la batalla.
 - Rosquilla vale `30`, Super GG vale `100`, Manifestando/Rayo vale `500`, sombrero con bigote vale `150`, galaxia vale `500`, pistola de dinero vale `500`. El webhook genérico `event:"attack"` usa `{coins}` como valor de donación.
 - La pistola de dinero pone al usuario primero en la cola si no está luchando. Si ese usuario ya está luchando y es su turno, cuenta como donación de `500`.
 - En el panel del overlay hay un interruptor para permitir que cualquier regalo normal meta al usuario en batalla/cola si ya eligió Pokémon. Está activado por defecto.
-- Cada personaje empieza en **Nv1 con 10 HP**. Al ganar sube de nivel, gana **+50 HP** máx. y vuelve a curarse al **100%**.
+- La barra de vida funciona como desgaste visual: baja un poco cada vez que el rival supera la puja, pero no llega a `0` hasta que alguien pierde. Al ganar sube de nivel y la barra vuelve al `100%`.
 - Cuando empieza el combate, suena en bucle `assets/battle-music.mp3` como música de fondo a volumen bajo.
 - Puedes debilitar manualmente al luchador de arriba o abajo desde el panel de control del overlay.
 - **TEAM ROCKET** está eliminado de la dinámica actual.

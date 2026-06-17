@@ -453,13 +453,19 @@
   }
   .charge-panel.attack-mode .charge-fill { background: linear-gradient(90deg, #ff4d6d, #ffb703, #fff56b); }
   .charge-panel.defense-mode .charge-fill { background: linear-gradient(90deg, #358cff, #7de3ff, #c6fbff); }
+  .charge-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 4px;
+  }
   .charge-count {
-    margin-top: 2px;
     font-size: 13px;
     text-align: right;
+    min-width: 34px;
   }
   .charge-help {
-    margin-top: 3px;
     font-size: 11px;
     line-height: 1.1;
     color: #ffeaa0;
@@ -676,8 +682,10 @@
     <div class="charge-panel" id="charge-panel">
       <div class="charge-title" id="charge-title">Carga tu ataque</div>
       <div class="charge-meter"><div class="charge-fill" id="charge-fill"></div></div>
-      <div class="charge-help" id="charge-help">🪙 1 moneda = 1 punto de ataque</div>
-      <div class="charge-count" id="charge-count">0</div>
+      <div class="charge-meta">
+        <div class="charge-help" id="charge-help">🪙 1 moneda = 1 punto de ataque</div>
+        <div class="charge-count" id="charge-count">0</div>
+      </div>
     </div>
     <div class="prep-banner" id="prep-banner">
       <img src="assets/galaxy.png" alt="" onerror="this.style.display='none'" />
